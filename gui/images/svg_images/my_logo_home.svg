@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="600" height="240" viewBox="0 0 600 240">
+  <defs>
+    <style>
+      .cls-1 {
+        font-size: 100px;
+        filter: url(#filter);
+        fill: #69f;
+      }
+
+      .cls-1, .cls-2 {
+        font-family: "Source Han Sans CN";
+        font-weight: 700;
+      }
+
+      .cls-2 {
+        font-size: 66.667px;
+        fill: #fff;
+      }
+    </style>
+    <filter id="filter" x="6" y="25" width="588" height="95" filterUnits="userSpaceOnUse">
+      <feImage preserveAspectRatio="none" x="6" y="25" width="588" height="95" result="image" xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iNTg4IiBoZWlnaHQ9Ijk1IiB2aWV3Qm94PSIwIDAgNTg4IDk1Ij4KICA8ZGVmcz4KICAgIDxzdHlsZT4KICAgICAgLmNscy0xIHsKICAgICAgICBmaWxsOiB1cmwoI2xpbmVhci1ncmFkaWVudCk7CiAgICAgIH0KICAgIDwvc3R5bGU+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImxpbmVhci1ncmFkaWVudCIgeDE9IjI5NCIgeTE9Ijk1IiB4Mj0iMjk0IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzU4MDhmYiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM5OTI5ZWEiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxyZWN0IGNsYXNzPSJjbHMtMSIgd2lkdGg9IjU4OCIgaGVpZ2h0PSI5NSIvPgo8L3N2Zz4K"/>
+      <feComposite result="composite" operator="in" in2="SourceGraphic"/>
+      <feBlend result="blend" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+  <text id="多无人机协同_" data-name="多无人机协同      " class="cls-1" x="1.446" y="110.769">多无人机协同      </text>
+  <text id="开发小组" class="cls-2" x="166.331" y="214.739">开发小组</text>
+</svg>
