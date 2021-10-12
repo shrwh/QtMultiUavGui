@@ -20,10 +20,17 @@ class CommandSender(QThread):
         self.socket.listen()
         while self.status==1:
             conn,addr=self.socket.accept()
-            data=conn.recv(1024).decode()
-            print(f"command_sender: Remote PC with ip[{addr[0]}] as id[{data}] connected.")
-            self.printToCodeEditor.emit(f"command_sender: Remote PC with ip[{addr[0]}] as id[{data}] connected.")
-            self.conns[data]=conn
+            address_id=conn.recv(1024).decode()
+            print(f"command_sender: Remote PC with addr[{addr}] as id[{address_id}] connected.")
+            self.printToCodeEditor.emit(f"command_sender: Remote PC with addr[{addr}] as id[{address_id}] connected.")
+            temp=self.conns.get(address_id)
+            if temp is not None:
+                ip=temp.getpeername()[0]
+                if ip!=addr[0]:
+                    raise Exception("Error: Duplicate address_id of remote PC!")
+                else:
+                    temp.close()
+            self.conns[address_id]=conn
 
     def _sendCommand(self,data,address_id):
         print(f"command_sender: Sending command{data} to remote PC id[{address_id}]...")
