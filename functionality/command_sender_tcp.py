@@ -22,7 +22,7 @@ class CommandSender(QThread):
             conn,addr=self.socket.accept()
             address_id=conn.recv(1024).decode()
             print(f"command_sender: Remote PC with addr[{addr}] as id[{address_id}] connected.")
-            self.printToCodeEditor.emit(f"command_sender: Remote PC with addr[{addr}] as id[{address_id}] connected.")
+            self.printToCodeEditor.emit(f"command_sender: Onboard PC with addr[{addr}] as id[{address_id}] connected.")
             temp=self.conns.get(address_id)
             if temp is not None:
                 ip=temp.getpeername()[0]
@@ -33,14 +33,14 @@ class CommandSender(QThread):
             self.conns[address_id]=conn
 
     def _sendCommand(self,data,address_id):
-        print(f"command_sender: Sending command{data} to remote PC id[{address_id}]...")
+        print(f"command_sender: Sending command{data} to onboard PC id[{address_id}]...")
         self.conns[address_id].sendall(data.encode())
 
     def sendCommand(self,command_input):
         if len(command_input) == 0:
             return
         command = command_input.strip()
-        command_split=re.split("[^A-Za-z0-9_.]+",command)
+        command_split=re.split("[^A-Za-z0-9_.-]+",command)
         #print(command_split)
         temp = command.find("@")
         if temp != -1:

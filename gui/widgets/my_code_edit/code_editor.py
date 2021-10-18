@@ -185,6 +185,8 @@ class MyCodeEditor(QWidget):
     @Slot()
     def codeEntered(self):
         self.code_editor.appendPlainText(f">>{self.getCodeEntered()}")
+        if self.getCodeEntered()=="clear":
+            self.code_editor.clear()
 
     def getCodeEntered(self):
         return self.line_edit.code_str

@@ -435,6 +435,8 @@ class SetupMainWindow:
         def printToCodeEditor(text):
             self.code_editor.appendTextLine(text)
         self.command_sender.printToCodeEditor.connect(printToCodeEditor)
+        self.video_receiver_1.printToCodeEditor.connect(printToCodeEditor)
+        self.video_receiver_2.printToCodeEditor.connect(printToCodeEditor)
 
         self.ui.load_pages.layout_code.addWidget(self.code_editor)
 

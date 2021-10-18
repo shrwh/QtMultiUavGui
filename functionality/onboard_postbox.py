@@ -72,9 +72,55 @@ class OnboardPostbox:
                 msg = data.decode()
                 command = json.loads(msg)
                 print(command)
-                if command[0] == "takeoff" and "takeoff" not in self.command:
-                    self.command.append(command[0])
-                    asyncio.run_coroutine_threadsafe(self.async_object.controlUav(float(command[1])),self.loop)
+                #should get all command function but now only 'takeoff' written by static code
+                import argparse
+                parser = argparse.ArgumentParser(description="params for any commands received from remote PC")
+                subparsers = parser.add_subparsers()
+                parser1 = subparsers.add_parser("takeoff", help="params for the command 'takeoff'")
+                import inspect
+                full_arg_spec=inspect.getfullargspec(self.async_object.controlUav)
+                args_func=full_arg_spec.args
+                args_func.remove("self")
+                defaults=full_arg_spec.defaults
+                for i in range(len(args_func)):
+                    try:
+                        parser1.add_argument(f'-{args_func[i][:2]}',f'--{args_func[i]}', default=defaults[i])
+                    except argparse.ArgumentError as e:
+                        parser1.add_argument(f'-{args_func[i][:3]}', f'--{args_func[i]}', default=defaults[i])
+                def takeoff(args:argparse.Namespace):
+                    delattr(args,"func")
+                    print("onboard_postbox: command received:\n","'takeoff':",args.__dict__)
+                    if "takeoff" not in self.command:
+                        self.command.append("takeoff")
+                        task = asyncio.run_coroutine_threadsafe(self.async_object.controlUav(**args.__dict__), self.loop)
+
+                        def callback(future):
+                            try:
+                                print("onboard_postbox: future-done result:\n", future.result())
+                            except Exception as e:
+                                print("onboard_postbox: future-raised exception:\n", e)
+                            self.command.remove("takeoff")
+
+                        task.add_done_callback(callback)
+
+                parser1.set_defaults(func=takeoff)
+                def parse_and_func():
+                    args=parser.parse_args(command)
+                    args.func(args)
+                t = Thread(target=parse_and_func)
+                t.start()
+                #t.join()
+
+                # if command[0] == "takeoff" and "takeoff" not in self.command:
+                #
+                #     self.command.append(command[0])
+                #     task=asyncio.run_coroutine_threadsafe(self.async_object.controlUav(*command[1:]),self.loop)
+                #     def callback(future):
+                #         try:
+                #             print("onboard_postbox: future-done result\n",future.result())
+                #         except Exception as e:
+                #             print("onboard_postbox: future-raised exception\n",e)
+                #     task.add_done_callback(callback)
             s.close()
         print("onboard_postbox: command_receiver ended")
 
@@ -161,10 +207,10 @@ if __name__ == "__main__":
     box = OnboardPostbox(address="127.0.0.1", video_port=8003, info_port=8001, command_port=8888,
                          info=info1, info_sleep=0.1, loop=None, async_object=None, command=[])
     box.start()
-    # info2 = {"uavId": 2, "pos": {"longitude": 1, "latitude": 2, "ab_altitude": 3, "rlt_altitude": 4},"angle":None}
-    # box = OnboardPostbox(address="192.168.1.103", video_port=8004, info_port=8002, host_port=8889,
-    #                      info=info2, info_sleep=0.1, loop=None, async_object=None, command=[])
-    # box.start()
+    info2 = {"uavId": 2, "pos": {"longitude": 1, "latitude": 2, "ab_altitude": 3, "rlt_altitude": 4},"angle":None}
+    box = OnboardPostbox(address="127.0.0.1", video_port=8004, info_port=8002, command_port=8889,
+                         info=info2, info_sleep=0.1, loop=None, async_object=None, command=[])
+    box.start()
     try:
         x=10
         while True:

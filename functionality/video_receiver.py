@@ -10,6 +10,7 @@ class VideoReceiverThread(QThread):
 
     updateFrame = Signal(QImage,int)
     streamReceived = Signal(int,int)
+    printToCodeEditor = Signal(str)
 
     def __init__(self, port, display_size=(640, 480), parent=None):
         QThread.__init__(self, parent)
@@ -39,6 +40,7 @@ class VideoReceiverThread(QThread):
                 print(f'video_receiver: {self.port} timed out!')
                 self.updateFrame.emit(None,self.port)
                 self.streamReceived.emit(1,self.port)
+                self.printToCodeEditor.emit(f"video_receiver: {self.port} timed out!")
                 continue
             # s.setblocking(False)
             # print(len(stringData))
