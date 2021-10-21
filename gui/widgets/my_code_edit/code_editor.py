@@ -144,6 +144,7 @@ class CodeEditor(QPlainTextEdit):
 from gui.widgets.py_line_edit import PyLineEdit
 import PySide6.QtCore as QtCore
 import PySide6.QtWidgets as QtWidgets
+import PySide6.QtGui as QtGui
 
 
 class CodeInputLine(PyLineEdit):
@@ -152,19 +153,30 @@ class CodeInputLine(PyLineEdit):
         self.code_history = []
         self.iter_code_history=reversed(self.code_history)
         self.code_str=""
+        self.returnPressed.connect(self.returnPressedMethod)
+
+    @Slot()
+    def returnPressedMethod(self):
+        self.code_str = self.text()
+        if len(self.code_str)==0:
+            return
+        self.code_history.append(self.text())
+        self.iter_code_history = reversed(self.code_history)
+        self.clear()
 
     def keyPressEvent(self, event):
         if event.key()==QtCore.Qt.Key_Up:
-            try:
-                self.setText(next(self.iter_code_history))
-            except StopIteration:
-                self.iter_code_history=reversed(self.code_history)
-                self.setText(next(self.iter_code_history))
-        elif event.key()==QtCore.Qt.Key_Return:
-            self.code_str=self.text()
-            self.code_history.append(self.text())
-            self.iter_code_history = reversed(self.code_history)
-            self.clear()
+            if self.code_history.__len__()!=0:
+                try:
+                    self.setText(next(self.iter_code_history))
+                except StopIteration:
+                    self.iter_code_history=reversed(self.code_history)
+                    self.setText(next(self.iter_code_history))
+        # elif event.key()==QtCore.Qt.Key_Return:
+        #     self.code_str=self.text()
+        #     self.code_history.append(self.text())
+        #     self.iter_code_history = reversed(self.code_history)
+        #     self.clear()
         super(CodeInputLine, self).keyPressEvent(event)
 
 
@@ -179,17 +191,28 @@ class MyCodeEditor(QWidget):
         self.layout.addWidget(self.code_editor)
         self.layout.addWidget(self.line_edit)
 
-    def appendTextLine(self,text):
-        self.code_editor.appendPlainText(text)
+    def appendTextLine(self,text:str,color="black"):
+        if text.startswith("<font"):
+            self.code_editor.appendHtml(text)
+        else:
+            self.code_editor.appendHtml(f'<font style="white-space: pre-line;" color=\"{color}\">{text}</font>')
+
+    def enterCode(self,code):
+        self.line_edit.setText(code)
+        self.line_edit.returnPressed.emit()
 
     @Slot()
     def codeEntered(self):
         self.code_editor.appendPlainText(f">>{self.getCodeEntered()}")
         if self.getCodeEntered()=="clear":
-            self.code_editor.clear()
+            self.clear()
 
     def getCodeEntered(self):
         return self.line_edit.code_str
+
+    def clear(self):
+        self.code_editor.clear()
+        self.line_edit.code_str=""
 
 
 if __name__ == "__main__":

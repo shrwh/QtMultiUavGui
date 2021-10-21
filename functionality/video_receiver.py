@@ -12,12 +12,13 @@ class VideoReceiverThread(QThread):
     streamReceived = Signal(int,int)
     printToCodeEditor = Signal(str)
 
-    def __init__(self, port, display_size=(640, 480), parent=None):
+    def __init__(self, port, uav_id,display_size=(640, 480), parent=None):
         QThread.__init__(self, parent)
         self.status = 1
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(('', port))
         self.port=port
+        self.uav_id=uav_id
         self.display_size=display_size
         self.socket.settimeout(3)
 
@@ -29,7 +30,7 @@ class VideoReceiverThread(QThread):
                     self.status = 2
                     self.streamReceived.emit(3,self.port)
                 except socket.timeout:
-                    print(f'video_receiver: {self.port} timed out!')
+                    #print(f'video_receiver: Onboard PC id[{self.uav_id}] timed out!')
                     self.updateFrame.emit(None, self.port)
 
             start1 = time.time()  # 用于计算帧率信息
@@ -37,10 +38,10 @@ class VideoReceiverThread(QThread):
                 stringData, addr = self.socket.recvfrom(50000)  # 根据获得的文件长度，获取图片文件
             except socket.timeout:
                 self.status = 1
-                print(f'video_receiver: {self.port} timed out!')
+                print(f'video_receiver: Onboard PC id[{self.uav_id}] disconnected!')
                 self.updateFrame.emit(None,self.port)
                 self.streamReceived.emit(1,self.port)
-                self.printToCodeEditor.emit(f"video_receiver: {self.port} timed out!")
+                self.printToCodeEditor.emit(f"video_receiver: Onboard PC id[{self.uav_id}] disconnected!")
                 continue
             # s.setblocking(False)
             # print(len(stringData))

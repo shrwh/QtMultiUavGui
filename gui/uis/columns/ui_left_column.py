@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'left_columnkHzjgB.ui'
+## Form generated from reading UI file 'left_columnmRoAGn.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.1.3
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
-
 from qt_core import *
 
 
@@ -27,6 +26,7 @@ class Ui_LeftColumn(object):
         self.verticalLayout = QVBoxLayout(self.menu_1)
         self.verticalLayout.setSpacing(5)
         self.verticalLayout.setObjectName(u"verticalLayout")
+        self.verticalLayout.setSizeConstraint(QLayout.SetDefaultConstraint)
         self.verticalLayout.setContentsMargins(5, 5, 5, 5)
         self.frame_btn_1 = QFrame(self.menu_1)
         self.frame_btn_1.setObjectName(u"frame_btn_1")
@@ -54,15 +54,22 @@ class Ui_LeftColumn(object):
 
         self.verticalLayout.addWidget(self.frame_btn_2)
 
-        self.label_1 = QLabel(self.menu_1)
-        self.label_1.setObjectName(u"label_1")
-        font = QFont()
-        font.setPointSize(16)
-        self.label_1.setFont(font)
-        self.label_1.setStyleSheet(u"font-size: 16pt")
-        self.label_1.setAlignment(Qt.AlignCenter)
+        self.frame_btn_3 = QFrame(self.menu_1)
+        self.frame_btn_3.setObjectName(u"frame_btn_3")
+        self.frame_btn_3.setMinimumSize(QSize(0, 40))
+        self.frame_btn_3.setMaximumSize(QSize(16777215, 40))
+        self.frame_btn_3.setFrameShape(QFrame.NoFrame)
+        self.frame_btn_3.setFrameShadow(QFrame.Raised)
+        self.btn_3_layout = QVBoxLayout(self.frame_btn_3)
+        self.btn_3_layout.setSpacing(0)
+        self.btn_3_layout.setObjectName(u"btn_3_layout")
+        self.btn_3_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.verticalLayout.addWidget(self.label_1)
+        self.verticalLayout.addWidget(self.frame_btn_3)
+
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+
+        self.verticalLayout.addItem(self.verticalSpacer)
 
         self.menus.addWidget(self.menu_1)
         self.menu_2 = QWidget()
@@ -73,6 +80,8 @@ class Ui_LeftColumn(object):
         self.verticalLayout_2.setContentsMargins(5, 5, 5, 5)
         self.label_2 = QLabel(self.menu_2)
         self.label_2.setObjectName(u"label_2")
+        font = QFont()
+        font.setPointSize(16)
         self.label_2.setFont(font)
         self.label_2.setStyleSheet(u"font-size: 16pt")
         self.label_2.setAlignment(Qt.AlignCenter)
@@ -94,7 +103,6 @@ class Ui_LeftColumn(object):
 
     def retranslateUi(self, LeftColumn):
         LeftColumn.setWindowTitle(QCoreApplication.translate("LeftColumn", u"Form", None))
-        self.label_1.setText(QCoreApplication.translate("LeftColumn", u"Menu 1 - Left Menu", None))
         self.label_2.setText(QCoreApplication.translate("LeftColumn", u"Menu 2 - Left Menu", None))
     # retranslateUi
 

@@ -3,6 +3,7 @@ from qt_core import *
 import re
 import json
 import threading
+import time
 
 
 class CommandSender(QThread):
@@ -20,35 +21,55 @@ class CommandSender(QThread):
         self.socket.listen()
         while self.status==1:
             conn,addr=self.socket.accept()
-            address_id=conn.recv(1024).decode()
-            print(f"command_sender: Remote PC with addr[{addr}] as id[{address_id}] connected.")
-            self.printToCodeEditor.emit(f"command_sender: Onboard PC with addr[{addr}] as id[{address_id}] connected.")
-            temp=self.conns.get(address_id)
+            uav_id=conn.recv(1024).decode()
+            print(f"command_sender: Remote PC with addr[{addr}] as id[{uav_id}] connected.")
+            self.printToCodeEditor.emit(f"command_sender: Onboard PC with addr[{addr}] as id[{uav_id}] connected.")
+            temp=self.conns.get(uav_id)
             if temp is not None:
                 ip=temp.getpeername()[0]
                 if ip!=addr[0]:
-                    raise Exception("Error: Duplicate address_id of remote PC!")
+                    print("command_sender: warning: duplicate address_id of remote PC!")
+                    self.printToCodeEditor.emit(
+                        "command_sender: warning: duplicate address_id of remote PC!")
                 else:
                     temp.close()
-            self.conns[address_id]=conn
+            self.conns[uav_id]=conn
+            if temp is None:
+                receiver = threading.Thread(target=self._responseReceiver, args=(uav_id,))
+                receiver.setDaemon(True)
+                receiver.start()
 
-    def _sendCommand(self,data,address_id):
-        print(f"command_sender: Sending command{data} to onboard PC id[{address_id}]...")
-        self.conns[address_id].sendall(data.encode())
+    def _sendCommand(self,data,uav_id):
+        print(f"command_sender: Sending command{data} to onboard PC id[{uav_id}]...")
+        self.conns[uav_id].sendall(data.encode())
+
+    def _responseReceiver(self,uav_id):
+        while self.status==1:
+            try:
+                response=self.conns[uav_id].recv(1024).decode()
+            except ConnectionResetError as e:
+                time.sleep(0.5)
+            else:
+                print(f'command_sender: id[{uav_id}] response:\n"{response}"')
+                # f'<font style="white-space: pre-line;" color=\"{color}\">{text}</font>'
+                temp=f'<font style="white-space: pre-line;" color=\"black\">id[{uav_id}] response:\n</font>'\
+                     +f'<font style="white-space: pre-line;" color=\"red\">{response}</font>'
+                self.printToCodeEditor.emit(temp)
 
     def sendCommand(self,command_input):
-        if len(command_input) == 0:
-            return
         command = command_input.strip()
+        if len(command) == 0:
+            return
         command_split=re.split("[^A-Za-z0-9_.-]+",command)
         #print(command_split)
         temp = command.find("@")
         if temp != -1:
             _command = command_split[:-1]
-            address_id = command_split[-1]
+            uav_id = command_split[-1]
             msg = json.dumps(_command)
-            self._sendCommand(msg, address_id)
+            self._sendCommand(msg, uav_id)
         else:
-            for address_id in self.conns.keys():
+            for uav_id in self.conns.keys():
                 msg = json.dumps(command_split)
-                self._sendCommand(msg, address_id)
+                self._sendCommand(msg, uav_id)
+

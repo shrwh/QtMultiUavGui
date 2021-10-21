@@ -70,4 +70,4 @@ from . py_line_edit import PyLineEdit
 # ///////////////////////////////////////////////////////////////
 from . py_table_widget import PyTableWidget
 
-from .my_code_edit import MyCodeEditor
+from .my_code_edit import *

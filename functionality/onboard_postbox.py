@@ -8,6 +8,39 @@ import numpy
 import asyncio
 
 
+class PrintHelper:
+    def __init__(self,s):
+        self.content=""
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+        self.socket=s
+    def set_print_to_content(self,flag):
+        #only for getting the prints of argparse
+        if flag:
+            sys.stdout=self
+            sys.stderr=self
+        else:
+            sys.stdout=self.stdout
+            sys.stderr = self.stderr
+    def send_content(self):
+        if self.content=="":
+            self.content="func succeeded."
+        self.socket.sendall(self.content.encode())
+        self.content=""
+    def write(self,str):
+        self.content += str
+        self.stdout.write(str)
+    def flush(self):
+        self.content=""
+    def __str__(self):
+        return self.content+"!!!!"
+    def print(self,str,send_flag=True):
+        self.write(str)
+        if send_flag:
+            self.send_content()
+
+
+
 class OnboardPostbox:
     def __init__(self,
                  address, video_port, info_port, command_port,
@@ -54,15 +87,17 @@ class OnboardPostbox:
         print("onboard_postbox: info_sender ended")
 
     def command_receiver(self):
+        tasks={}
         while self.should_continue:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
                 s.connect(self.address_command)
-            except ConnectionRefusedError as e:
+            except Exception as e:
                 s.close()
                 time.sleep(0.1)
                 continue
             s.sendall(str(self.info["uavId"]).encode())
+            ph = PrintHelper(s)
             while self.should_continue:
                 try:
                     data= s.recv(1024)
@@ -72,10 +107,13 @@ class OnboardPostbox:
                 msg = data.decode()
                 command = json.loads(msg)
                 print(command)
-                #should get all command function but now only 'takeoff' written by static code
+                #should get all command function but now only 'takeoff'\'stop' written by static code
                 import argparse
                 parser = argparse.ArgumentParser(description="params for any commands received from remote PC")
                 subparsers = parser.add_subparsers()
+
+                # 'takeoff'
+                # ///////////////////////////////////////////////////////////////
                 parser1 = subparsers.add_parser("takeoff", help="params for the command 'takeoff'")
                 import inspect
                 full_arg_spec=inspect.getfullargspec(self.async_object.controlUav)
@@ -90,26 +128,89 @@ class OnboardPostbox:
                 def takeoff(args:argparse.Namespace):
                     delattr(args,"func")
                     print("onboard_postbox: command received:\n","'takeoff':",args.__dict__)
-                    if "takeoff" not in self.command:
-                        self.command.append("takeoff")
+                    task_takeoff=tasks.get("takeoff")
+                    if task_takeoff is None or task_takeoff.done():
+                        #self.command.append("takeoff")
                         task = asyncio.run_coroutine_threadsafe(self.async_object.controlUav(**args.__dict__), self.loop)
 
                         def callback(future):
                             try:
-                                print("onboard_postbox: future-done result:\n", future.result())
+                                result = future.result()
+                                # if result is None:
+                                #     result = "takeoff succeeded."
+                                ph.print("onboard_postbox: takeoff succeeded.")
+                            except asyncio.CancelledError:
+                                ph.print("onboard_postbox: takeoff cancelled.")
                             except Exception as e:
-                                print("onboard_postbox: future-raised exception:\n", e)
-                            self.command.remove("takeoff")
+                                ph.print("onboard_postbox: takeoff exception:\n" + str(e))
+                            #self.command.remove("takeoff")
+                            #tasks.pop("takeoff")
 
                         task.add_done_callback(callback)
+                        tasks["takeoff"]=task
+                    else:
+                        ph.print("onboard_postbox: warning: command 'takeoff' is running.")
 
                 parser1.set_defaults(func=takeoff)
-                def parse_and_func():
+
+                # 'stop'
+                # ///////////////////////////////////////////////////////////////
+                parser_stop = subparsers.add_parser("stop", help="params for the command 'stop'")
+
+                def stop(args:argparse.Namespace):
+                    # stop all for now
+                    for task in tasks.values():
+                        task.cancel()
+                    #tasks.clear()
+                    ph.print("onboard_postbox: all tasks stopped.")
+
+                parser_stop.set_defaults(func=stop)
+
+                # 'test'
+                # ///////////////////////////////////////////////////////////////
+                parser_test = subparsers.add_parser("test", help="params for the command 'test'")
+
+                def test(args:argparse.Namespace):
+                    delattr(args, "func")
+                    task = asyncio.run_coroutine_threadsafe(self.async_object.test(**args.__dict__), self.loop)
+                    task_test = tasks.get("test")
+                    if task_test:
+                        print(task_test.done(), task_test.cancelled())
+                    if task_test is None or task_test.done():
+
+                        def callback(future):
+                            try:
+                                result=future.result()
+                                if result is None:
+                                    result="test succeeded."
+                                ph.print("onboard_postbox: future-done result:\n"+result)
+                            except asyncio.CancelledError:
+                                ph.print("onboard_postbox: test cancelled.")
+                            except Exception as e:
+                                ph.print("onboard_postbox: test exception:\n"+str(e))
+                            # self.command.remove("takeoff")
+                            #tasks.pop("test")
+
+                        task.add_done_callback(callback)
+                        tasks["test"] = task
+                    else:
+                        ph.print("onboard_postbox: warning: command 'test' is running.")
+
+                parser_test.set_defaults(func=test)
+
+                # parse and func
+                # ///////////////////////////////////////////////////////////////
+                try:
+                    ph.set_print_to_content(True)
                     args=parser.parse_args(command)
+                except BaseException as e:
+                    #print("parse:",e.args)
+                    ph.set_print_to_content(False)
+                    ph.send_content()
+                else:
+                    ph.set_print_to_content(False)
                     args.func(args)
-                t = Thread(target=parse_and_func)
-                t.start()
-                #t.join()
+
 
                 # if command[0] == "takeoff" and "takeoff" not in self.command:
                 #

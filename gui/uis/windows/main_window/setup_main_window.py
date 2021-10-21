@@ -224,12 +224,22 @@ class SetupMainWindow:
         # ///////////////////////////////////////////////////////////////
         self.command_sender = CommandSender()
         self.command_sender.start()
+
+        # Code Editor
+        # ///////////////////////////////////////////////////////////////
+        self.code_editor = MyCodeEditor()
+
+        @Slot()
+        def sendCommand():
+            command_input=self.code_editor.getCodeEntered()
+            self.command_sender.sendCommand(command_input)
+        self.code_editor.line_edit.returnPressed.connect(sendCommand)
+
         # LEFT COLUMN
         # ///////////////////////////////////////////////////////////////
         @Slot()
         def takeoff_button_clicked():
-            #!!!!!!!!!!!!!!!!!!!!!
-            self.command_sender.sendCommand("takeoff 0.5")
+            self.code_editor.enterCode("takeoff")
 
         self.bnt_takeoff=PyPushButton(
             text="takeoff",
@@ -243,13 +253,46 @@ class SetupMainWindow:
         self.ui.left_column.menus.btn_1_layout.addWidget(self.bnt_takeoff)
         self.bnt_takeoff.clicked.connect(takeoff_button_clicked)
 
-        self.toggle_1=PyToggle(
-            width=50,
+        # self.toggle_1=PyToggle(
+        #     width=50,
+        #     bg_color=self.themes["app_color"]["dark_one"],
+        #     circle_color=self.themes["app_color"]["icon_color"],
+        #     active_color=self.themes["app_color"]["context_color"],
+        # )
+        # self.ui.left_column.menus.btn_2_layout.addWidget(self.toggle_1,0,Qt.AlignCenter)
+        @Slot()
+        def stop_button_clicked():
+            self.code_editor.enterCode("stop")
+
+        self.bnt_stop = PyPushButton(
+            text="stop",
+            radius=8,
+            color=self.themes["app_color"]["text_foreground"],
             bg_color=self.themes["app_color"]["dark_one"],
-            circle_color=self.themes["app_color"]["icon_color"],
-            active_color=self.themes["app_color"]["context_color"],
+            bg_color_hover=self.themes["app_color"]["dark_three"],
+            bg_color_pressed=self.themes["app_color"]["dark_four"],
         )
-        self.ui.left_column.menus.btn_2_layout.addWidget(self.toggle_1,Qt.AlignCenter,Qt.AlignCenter)
+        self.bnt_stop.setMinimumHeight(40)
+        self.ui.left_column.menus.btn_2_layout.addWidget(self.bnt_stop)
+        self.bnt_stop.clicked.connect(stop_button_clicked)
+
+        self.left_column_line_edit = CodeInputLine()
+        self.left_column_line_edit.set_stylesheet(
+            radius=4,
+            border_size=2,
+            color=self.themes["app_color"]["text_foreground"],
+            selection_color=self.themes["app_color"]["white"],
+            bg_color=self.themes["app_color"]["dark_one"],
+            bg_color_active=self.themes["app_color"]["dark_three"],
+            context_color=self.themes["app_color"]["context_color"]
+        )
+
+        @Slot()
+        def leftColumnLineEditReturnPressedMethod():
+            self.code_editor.enterCode(self.left_column_line_edit.code_str)
+
+        self.left_column_line_edit.returnPressed.connect(leftColumnLineEditReturnPressedMethod)
+        self.ui.left_column.menus.btn_3_layout.addWidget(self.left_column_line_edit)
 
         # Page1
         # ///////////////////////////////////////////////////////////////
@@ -294,11 +337,11 @@ class SetupMainWindow:
                         not any(self.video_received_flags.values()):
                     MainFunctions.set_page(self, self.ui.load_pages.page_1)
 
-        self.video_receiver_1 = VideoReceiverThread(8003,self.video_display_size)
+        self.video_receiver_1 = VideoReceiverThread(8003,1,self.video_display_size)
         self.video_receiver_1.updateFrame.connect(setImage)
         self.video_receiver_1.streamReceived.connect(changeMainPage)
         self.video_receiver_1.start()
-        self.video_receiver_2 = VideoReceiverThread(8004,self.video_display_size)
+        self.video_receiver_2 = VideoReceiverThread(8004,2,self.video_display_size)
         self.video_receiver_2.updateFrame.connect(setImage)
         self.video_receiver_2.streamReceived.connect(changeMainPage)
         self.video_receiver_2.start()
@@ -409,7 +452,6 @@ class SetupMainWindow:
 
         # Page5
         # ///////////////////////////////////////////////////////////////
-        self.code_editor = MyCodeEditor()
         self.code_editor.code_editor.setStyleSheet("""
             font-family: Microsoft YaHei UI;
             color: black;
@@ -425,15 +467,9 @@ class SetupMainWindow:
             context_color = self.themes["app_color"]["context_color"]
         )
 
-        @Slot()
-        def sendCommand():
-            command_input=self.code_editor.getCodeEntered()
-            self.command_sender.sendCommand(command_input)
-        self.code_editor.line_edit.returnPressed.connect(sendCommand)
-
         @Slot(str)
         def printToCodeEditor(text):
-            self.code_editor.appendTextLine(text)
+            self.code_editor.appendTextLine(text,"red")
         self.command_sender.printToCodeEditor.connect(printToCodeEditor)
         self.video_receiver_1.printToCodeEditor.connect(printToCodeEditor)
         self.video_receiver_2.printToCodeEditor.connect(printToCodeEditor)

@@ -115,13 +115,16 @@ class MainWindow(QMainWindow):
         elif btn.objectName()=="btn_settings":
             if not MainFunctions.left_column_is_visible(self):
                 MainFunctions.toggle_left_column(self)
-            self.ui.left_menu.select_only_one_tab(btn.objectName())
-            MainFunctions.set_left_column_menu(self,
-                                               menu=self.ui.left_column.menus.menu_1,
-                                               title="settings",
-                                               icon_path=Functions.set_svg_icon("icon_settings.svg"))
-            top_settings = MainFunctions.get_title_bar_btn(self, "btn_top_settings")
-            top_settings.set_active(False)
+                self.ui.left_menu.select_only_one_tab(btn.objectName())
+                # MainFunctions.set_left_column_menu(self,
+                #                                    menu=self.ui.left_column.menus.menu_1,
+                #                                    title="settings",
+                #                                    icon_path=Functions.set_svg_icon("icon_settings.svg"))
+                top_settings = MainFunctions.get_title_bar_btn(self, "btn_top_settings")
+                top_settings.set_active(False)
+            else:
+                MainFunctions.toggle_left_column(self)
+                self.ui.left_menu.deselect_all_tab()
         elif btn.objectName()=="btn_close_left_column":
             MainFunctions.toggle_left_column(self)
             self.ui.left_menu.deselect_all_tab()
