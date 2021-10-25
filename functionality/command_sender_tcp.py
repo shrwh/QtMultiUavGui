@@ -47,6 +47,9 @@ class CommandSender(QThread):
         while self.status==1:
             try:
                 response=self.conns[uav_id].recv(1024).decode()
+                # python socket的一个bug?，当对面断开连接后，recv会持续收到空字符串
+                if response=="":
+                    raise ConnectionResetError()
             except ConnectionResetError as e:
                 time.sleep(0.5)
             else:

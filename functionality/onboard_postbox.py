@@ -102,6 +102,7 @@ class OnboardPostbox:
                 try:
                     data= s.recv(1024)
                 except ConnectionResetError as e:
+                    print("ConnectionResetError")
                     s.close()
                     break
                 msg = data.decode()
@@ -222,6 +223,7 @@ class OnboardPostbox:
                 #         except Exception as e:
                 #             print("onboard_postbox: future-raised exception\n",e)
                 #     task.add_done_callback(callback)
+            s.shutdown(socket.SHUT_RDWR)
             s.close()
         print("onboard_postbox: command_receiver ended")
 
