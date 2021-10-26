@@ -16,6 +16,7 @@ class CommandSender(QThread):
         self.socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         self.socket.bind(('', 8888))
         self.conns={}
+        self.conditions={}
 
     def run(self):
         self.socket.listen()
@@ -39,6 +40,8 @@ class CommandSender(QThread):
                 receiver.setDaemon(True)
                 receiver.start()
 
+                self.conditions[uav_id]=threading.Condition()
+
     def _sendCommand(self,data,uav_id):
         print(f"command_sender: Sending command{data} to onboard PC id[{uav_id}]...")
         self.conns[uav_id].sendall(data.encode())
@@ -53,6 +56,9 @@ class CommandSender(QThread):
             except ConnectionResetError as e:
                 time.sleep(0.5)
             else:
+                if response.find("setv"):
+                    with self.conditions[uav_id]:
+                        self.conditions[uav_id].notify()
                 print(f'command_sender: id[{uav_id}] response:\n"{response}"')
                 # f'<font style="white-space: pre-line;" color=\"{color}\">{text}</font>'
                 temp=f'<font style="white-space: pre-line;" color=\"black\">id[{uav_id}] response:\n</font>'\
@@ -75,4 +81,30 @@ class CommandSender(QThread):
             for uav_id in self.conns.keys():
                 msg = json.dumps(command_split)
                 self._sendCommand(msg, uav_id)
+
+    def sendCommandWithResponse(self,command_input):
+        command = command_input.strip()
+        if len(command) == 0:
+            return
+        command_split = re.split("[^A-Za-z0-9_.-]+", command)
+        # print(command_split)
+        temp = command.find("@")
+        if temp != -1:
+            _command = command_split[:-1]
+            uav_id = command_split[-1]
+            msg = json.dumps(_command)
+            self._sendCommand(msg, uav_id)
+            with self.conditions[uav_id]:
+                self.conditions[uav_id].wait()
+        else:
+            for uav_id in self.conns.keys():
+                msg = json.dumps(command_split)
+                self._sendCommand(msg, uav_id)
+            for uav_id in self.conns.keys():
+                with self.conditions[uav_id]:
+                    self.conditions[uav_id].wait()
+        #print("sendCommandWithResponse ended.")
+
+
+
 

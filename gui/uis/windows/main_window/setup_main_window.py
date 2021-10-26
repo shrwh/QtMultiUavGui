@@ -224,15 +224,33 @@ class SetupMainWindow:
         # ///////////////////////////////////////////////////////////////
         self.command_sender = CommandSender()
         self.command_sender.start()
-
         # Code Editor
         # ///////////////////////////////////////////////////////////////
         self.code_editor = MyCodeEditor()
+        # Info Display Labels
+        # ///////////////////////////////////////////////////////////////
+        self.labels_info = {}
 
         @Slot()
-        def sendCommand():
+        def sendCommand():#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             command_input=self.code_editor.getCodeEntered()
-            self.command_sender.sendCommand(command_input)
+            if command_input.strip()=="save":
+                print("=" * 50)
+                for each in self.labels_info.values():
+                    for key,value in each.items():
+                        print(key,value.text())
+                print("=" * 50)
+            elif command_input.strip()=="s1":
+                def prepare():
+                    self.command_sender.sendCommandWithResponse("setv -p True")
+                def set_velocity_body(*args):
+                    self.command_sender.sendCommand(f"setv -f {args[0]} -l {args[1]} -u {args[2]} -y {args[3]}")
+                    import time
+                    time.sleep(args[4])
+                from functionality import script_test
+                script_test.script_test(prepare,set_velocity_body)
+            else:
+                self.command_sender.sendCommand(command_input)
         self.code_editor.line_edit.returnPressed.connect(sendCommand)
 
         # LEFT COLUMN
@@ -277,6 +295,7 @@ class SetupMainWindow:
         self.bnt_stop.clicked.connect(stop_button_clicked)
 
         self.left_column_line_edit = CodeInputLine()
+        self.left_column_line_edit.loadHistory()
         self.left_column_line_edit.set_stylesheet(
             radius=4,
             border_size=2,
@@ -349,8 +368,6 @@ class SetupMainWindow:
         # Page4
         # ///////////////////////////////////////////////////////////////
         # Create a label for the display camera
-        self.labels_info = {}
-
         def insertInfoDisplay(_key,_value,info_id):
             formLayout_info = None
             if info_id[0] == "1":
@@ -466,6 +483,12 @@ class SetupMainWindow:
             bg_color_active = self.themes["app_color"]["dark_three"],
             context_color = self.themes["app_color"]["context_color"]
         )
+
+        @Slot()
+        def addToHistory():
+            self.left_column_line_edit.addToHistory(self.code_editor.getCodeEntered())
+        self.left_column_line_edit.history_flag=False
+        self.code_editor.line_edit.returnPressed.connect(addToHistory)
 
         @Slot(str)
         def printToCodeEditor(text):

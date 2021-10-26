@@ -89,6 +89,7 @@ class MainWindow(QMainWindow):
         time.sleep(1)
         QMainWindow.closeEvent(self,event)
         print("MainWindow: All socket threads finished.")
+        self.code_editor.saveCookie()
 
 
     # LEFT MENU BTN IS CLICKED

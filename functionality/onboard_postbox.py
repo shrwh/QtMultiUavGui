@@ -75,7 +75,7 @@ class OnboardPostbox:
         self.t2.join()
         self.t1.join()
         #self.t3.join()
-        print("onboard_postbox: All ended.")
+        print(f"onboard_postbox id[{self.async_object.uavId}]: All ended.")
 
     def info_sender(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -84,7 +84,7 @@ class OnboardPostbox:
             s.sendto(msg.encode(), self.address_info)
             time.sleep(self.info_sleep)
         s.close()
-        print("onboard_postbox: info_sender ended")
+        print(f"onboard_postbox id[{self.async_object.uavId}]: info_sender ended")
 
     def command_receiver(self):
         tasks={}
@@ -102,7 +102,7 @@ class OnboardPostbox:
                 try:
                     data= s.recv(1024)
                 except ConnectionResetError as e:
-                    print("ConnectionResetError")
+                    #print("ConnectionResetError")
                     s.close()
                     break
                 msg = data.decode()
@@ -128,7 +128,7 @@ class OnboardPostbox:
                         parser1.add_argument(f'-{args_func[i][:3]}', f'--{args_func[i]}', default=defaults[i])
                 def takeoff(args:argparse.Namespace):
                     delattr(args,"func")
-                    print("onboard_postbox: command received:\n","'takeoff':",args.__dict__)
+                    print(f"onboard_postbox id[{self.async_object.uavId}]: command received:\n","'takeoff':",args.__dict__)
                     task_takeoff=tasks.get("takeoff")
                     if task_takeoff is None or task_takeoff.done():
                         #self.command.append("takeoff")
@@ -139,18 +139,18 @@ class OnboardPostbox:
                                 result = future.result()
                                 # if result is None:
                                 #     result = "takeoff succeeded."
-                                ph.print("onboard_postbox: takeoff succeeded.")
+                                ph.print(f"onboard_postbox id[{self.async_object.uavId}]: takeoff succeeded.")
                             except asyncio.CancelledError:
-                                ph.print("onboard_postbox: takeoff cancelled.")
+                                ph.print(f"onboard_postbox id[{self.async_object.uavId}]: takeoff cancelled.")
                             except Exception as e:
-                                ph.print("onboard_postbox: takeoff exception:\n" + str(e))
+                                ph.print(f"onboard_postbox id[{self.async_object.uavId}]: takeoff exception:\n" + str(e))
                             #self.command.remove("takeoff")
                             #tasks.pop("takeoff")
 
                         task.add_done_callback(callback)
                         tasks["takeoff"]=task
                     else:
-                        ph.print("onboard_postbox: warning: command 'takeoff' is running.")
+                        ph.print(f"onboard_postbox id[{self.async_object.uavId}]: warning: command 'takeoff' is running.")
 
                 parser1.set_defaults(func=takeoff)
 
@@ -163,9 +163,49 @@ class OnboardPostbox:
                     for task in tasks.values():
                         task.cancel()
                     #tasks.clear()
-                    ph.print("onboard_postbox: all tasks stopped.")
+                    ph.print(f"onboard_postbox id[{self.async_object.uavId}]: all tasks stopped.")
 
                 parser_stop.set_defaults(func=stop)
+
+                # 'setv'
+                # ///////////////////////////////////////////////////////////////
+                parser_setv = subparsers.add_parser("setv", help="params for the command 'set_velocity'")
+                parser_setv.add_argument(f'-f', f'--forward_backward', default=0,type=float)
+                parser_setv.add_argument(f'-l', f'--left_right', default=0,type=float)
+                parser_setv.add_argument(f'-u', f'--up_down', default=0,type=float)
+                parser_setv.add_argument(f'-y', f'--yaw', default=0,type=float)
+                parser_setv.add_argument(f'-p', f'--prepare', default=False,type=bool)
+
+                def setv(args: argparse.Namespace):
+                    delattr(args, "func")
+                    from mavsdk.offboard import VelocityBodyYawspeed
+                    async def temp(args):
+                        if args.prepare:
+                            await self.async_object._prepare_takeoff()
+                        await self.async_object.drone.offboard.set_velocity_body(VelocityBodyYawspeed(
+                            args.forward_backward, args.left_right, -args.up_down, args.yaw))
+
+                    task = asyncio.run_coroutine_threadsafe(temp(args), self.loop)
+                    task_setv = tasks.get("setv")
+                    if task_setv is None or task_setv.done():
+
+                        def callback(future):
+                            try:
+                                result = future.result()
+                                ph.print(f"onboard_postbox id[{self.async_object.uavId}]: setv succeeded.")
+                            except asyncio.CancelledError:
+                                ph.print(f"onboard_postbox id[{self.async_object.uavId}]: setv cancelled.")
+                            except Exception as e:
+                                ph.print(f"onboard_postbox id[{self.async_object.uavId}]: setv exception:\n" + str(e))
+                            # self.command.remove("takeoff")
+                            # tasks.pop("test")
+
+                        task.add_done_callback(callback)
+                        tasks["test"] = task
+                    else:
+                        ph.print(f"onboard_postbox id[{self.async_object.uavId}]: warning: command 'setv' is running.")
+
+                parser_setv.set_defaults(func=setv)
 
                 # 'test'
                 # ///////////////////////////////////////////////////////////////
@@ -173,7 +213,12 @@ class OnboardPostbox:
 
                 def test(args:argparse.Namespace):
                     delattr(args, "func")
-                    task = asyncio.run_coroutine_threadsafe(self.async_object.test(**args.__dict__), self.loop)
+                    #task = asyncio.run_coroutine_threadsafe(self.async_object.test(**args.__dict__), self.loop)
+                    from mavsdk.offboard import VelocityBodyYawspeed
+                    async def temp():
+                        await self.async_object.drone.offboard.set_velocity_body(VelocityBodyYawspeed(
+                        0, 0, 0, 0))
+                    task = asyncio.run_coroutine_threadsafe(temp(),self.loop)
                     task_test = tasks.get("test")
                     if task_test:
                         print(task_test.done(), task_test.cancelled())
@@ -184,18 +229,18 @@ class OnboardPostbox:
                                 result=future.result()
                                 if result is None:
                                     result="test succeeded."
-                                ph.print("onboard_postbox: future-done result:\n"+result)
+                                ph.print(f"onboard_postbox id[{self.async_object.uavId}]: future-done result:\n"+result)
                             except asyncio.CancelledError:
-                                ph.print("onboard_postbox: test cancelled.")
+                                ph.print(f"onboard_postbox id[{self.async_object.uavId}]: test cancelled.")
                             except Exception as e:
-                                ph.print("onboard_postbox: test exception:\n"+str(e))
+                                ph.print(f"onboard_postbox id[{self.async_object.uavId}]: test exception:\n"+str(e))
                             # self.command.remove("takeoff")
                             #tasks.pop("test")
 
                         task.add_done_callback(callback)
                         tasks["test"] = task
                     else:
-                        ph.print("onboard_postbox: warning: command 'test' is running.")
+                        ph.print(f"onboard_postbox id[{self.async_object.uavId}]: warning: command 'test' is running.")
 
                 parser_test.set_defaults(func=test)
 
@@ -219,13 +264,13 @@ class OnboardPostbox:
                 #     task=asyncio.run_coroutine_threadsafe(self.async_object.controlUav(*command[1:]),self.loop)
                 #     def callback(future):
                 #         try:
-                #             print("onboard_postbox: future-done result\n",future.result())
+                #             print(f"onboard_postbox id[{self.async_object.uavId}]: future-done result\n",future.result())
                 #         except Exception as e:
-                #             print("onboard_postbox: future-raised exception\n",e)
+                #             print(f"onboard_postbox id[{self.async_object.uavId}]: future-raised exception\n",e)
                 #     task.add_done_callback(callback)
-            s.shutdown(socket.SHUT_RDWR)
-            s.close()
-        print("onboard_postbox: command_receiver ended")
+        s.shutdown(socket.SHUT_RDWR)
+        s.close()
+        print(f"onboard_postbox id[{self.async_object.uavId}]: command_receiver ended")
 
     # def command_receiver(self):
     #     while self.should_continue:
@@ -274,7 +319,7 @@ class OnboardPostbox:
         capture.release()
         cv2.destroyAllWindows()
         s.close()
-        print("onboard_postbox: video_sender ended")
+        print(f"onboard_postbox id[{self.async_object.uavId}]: video_sender ended")
 
 
 def gstreamer_pipeline(

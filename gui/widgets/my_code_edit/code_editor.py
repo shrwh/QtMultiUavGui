@@ -144,7 +144,7 @@ class CodeEditor(QPlainTextEdit):
 from gui.widgets.py_line_edit import PyLineEdit
 import PySide6.QtCore as QtCore
 import PySide6.QtWidgets as QtWidgets
-import PySide6.QtGui as QtGui
+import numpy as np
 
 
 class CodeInputLine(PyLineEdit):
@@ -154,14 +154,19 @@ class CodeInputLine(PyLineEdit):
         self.iter_code_history=reversed(self.code_history)
         self.code_str=""
         self.returnPressed.connect(self.returnPressedMethod)
+        self.history_flag=True
+
+    def addToHistory(self,str):
+        self.code_history.append(str)
+        self.iter_code_history = reversed(self.code_history)
 
     @Slot()
     def returnPressedMethod(self):
         self.code_str = self.text()
         if len(self.code_str)==0:
             return
-        self.code_history.append(self.text())
-        self.iter_code_history = reversed(self.code_history)
+        if self.history_flag:
+            self.addToHistory(self.text())
         self.clear()
 
     def keyPressEvent(self, event):
@@ -172,12 +177,21 @@ class CodeInputLine(PyLineEdit):
                 except StopIteration:
                     self.iter_code_history=reversed(self.code_history)
                     self.setText(next(self.iter_code_history))
-        # elif event.key()==QtCore.Qt.Key_Return:
-        #     self.code_str=self.text()
-        #     self.code_history.append(self.text())
-        #     self.iter_code_history = reversed(self.code_history)
-        #     self.clear()
+        elif event.key()==QtCore.Qt.Key_Down:
+            if self.code_history.__len__() != 0:
+                self.iter_code_history = reversed(self.code_history)
+                self.setText(next(self.iter_code_history))
         super(CodeInputLine, self).keyPressEvent(event)
+
+    def saveHistory(self):
+        a = np.array(self.code_history)
+        np.save("property/cookie.npy", a)
+
+    def loadHistory(self):
+        try:
+            self.code_history = np.load("property/cookie.npy").tolist()
+        except Exception as e:
+            pass
 
 
 class MyCodeEditor(QWidget):
@@ -190,6 +204,7 @@ class MyCodeEditor(QWidget):
         self.layout=QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.code_editor)
         self.layout.addWidget(self.line_edit)
+        self.loadCookie()
 
     def appendTextLine(self,text:str,color="black"):
         if text.startswith("<font"):
@@ -213,6 +228,12 @@ class MyCodeEditor(QWidget):
     def clear(self):
         self.code_editor.clear()
         self.line_edit.code_str=""
+
+    def saveCookie(self):
+        self.line_edit.saveHistory()
+
+    def loadCookie(self):
+        self.line_edit.loadHistory()
 
 
 if __name__ == "__main__":
