@@ -224,6 +224,10 @@ class SetupMainWindow:
         # ///////////////////////////////////////////////////////////////
         self.command_sender = CommandSender()
         self.command_sender.start()
+        # Video Receiver
+        # ///////////////////////////////////////////////////////////////
+        self.video_display_size = (384, 288)  # 640,480 *0.6
+        self.video_receiver_1 = VideoReceiverThread(8003, 1, self.video_display_size)
         # Code Editor
         # ///////////////////////////////////////////////////////////////
         self.code_editor = MyCodeEditor()
@@ -241,14 +245,14 @@ class SetupMainWindow:
                         print(key,value.text())
                 print("=" * 50)
             elif command_input.strip()=="s1":
-                def prepare():
-                    self.command_sender.sendCommandWithResponse("setv -p True")
-                def set_velocity_body(*args):
-                    self.command_sender.sendCommand(f"setv -f {args[0]} -l {args[1]} -u {args[2]} -y {args[3]}")
-                    import time
-                    time.sleep(args[4])
-                from functionality import script_test
-                script_test.script_test(prepare,set_velocity_body)
+                # def prepare():
+                #     self.command_sender.sendCommandWithResponse("setv -p True")
+                # def set_velocity_body(*args):
+                #     self.command_sender.sendCommand(f"setv -f {args[0]} -l {args[1]} -u {args[2]} -y {args[3]}")
+                #     import time
+                #     time.sleep(args[4])
+                from mydronesdk.ddpg_yolo_control import script
+                script.script(self.command_sender,self.video_receiver_1)
             else:
                 self.command_sender.sendCommand(command_input)
         self.code_editor.line_edit.returnPressed.connect(sendCommand)
@@ -322,7 +326,6 @@ class SetupMainWindow:
         # Page3
         # ///////////////////////////////////////////////////////////////
         # Create a label for the display camera
-        self.video_display_size=(384,288)#640,480 *0.6
         self.label_video_1 = self.ui.load_pages.label_video_1
         self.label_video_1.setFixedSize(*self.video_display_size)
         self.label_video_2 = self.ui.load_pages.label_video_2
@@ -356,7 +359,7 @@ class SetupMainWindow:
                         not any(self.video_received_flags.values()):
                     MainFunctions.set_page(self, self.ui.load_pages.page_1)
 
-        self.video_receiver_1 = VideoReceiverThread(8003,1,self.video_display_size)
+        # self.video_receiver_1 = VideoReceiverThread(8003,1,self.video_display_size)
         self.video_receiver_1.updateFrame.connect(setImage)
         self.video_receiver_1.streamReceived.connect(changeMainPage)
         self.video_receiver_1.start()
@@ -408,8 +411,8 @@ class SetupMainWindow:
             labels_info[info_id].setMinimumWidth(200)
             formLayout_info.addRow(_label, labels_info[info_id])
 
-        @Slot(int,dict,tuple)
-        def infoDisplayAddrBind(state,info,addr):
+        @Slot(int,dict)
+        def infoDisplayAddrBind(state,info):
             if state==1 and info is not None:
                 uavId=info["uavId"]
                 self.labels_info[uavId]={}
@@ -454,11 +457,6 @@ class SetupMainWindow:
             else:
                 pass
                 # print("waiting for info...")
-
-            # no use for now as command_sender_tcp is used
-            # if addr is not None:
-            #     print(f"Remote PC connected from {addr[1:]} at {addr[0]}.")
-            #     self.command_sender.sendCommand(f"@{addr[1]} {addr[2]} {addr[0]}")
 
         self.info_receiver_1=InfoReceiverThread(8001)
         self.info_receiver_1.infoReceived.connect(infoDisplayAddrBind)

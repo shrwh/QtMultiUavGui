@@ -6,7 +6,7 @@ import json
 
 class InfoReceiverThread(QThread):
 
-    infoReceived = Signal(int,dict,tuple)#third param redundant because of use of command_sender_tcp
+    infoReceived = Signal(int,dict)
 
     def __init__(self, port, parent=None):
         QThread.__init__(self, parent)
@@ -14,7 +14,7 @@ class InfoReceiverThread(QThread):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(('', port))
         #self.socket.settimeout(3)#no use for now
-        self.addr=(port,)
+        #self.addr=(port,)#no use for now
         #self.port=port#no use for now
 
     def run(self):
@@ -25,10 +25,10 @@ class InfoReceiverThread(QThread):
                 print(f'{self.port}: info_receiver timed out!')
                 #self.infoReceived.emit(1,None,None)
                 continue
-            self.addr=self.addr+addr
+            #self.addr=self.addr+addr
             msg = data.decode()
             info = json.loads(msg)
-            self.infoReceived.emit(1,info,self.addr)
+            self.infoReceived.emit(1,info)
             self.status = 2
         while self.status:
             try:
@@ -42,7 +42,7 @@ class InfoReceiverThread(QThread):
             info = json.loads(msg)
             # Emit signal
             #print(info)
-            self.infoReceived.emit(2,info,None)
+            self.infoReceived.emit(2,info)
         self.socket.close()
         sys.exit(-1)
 

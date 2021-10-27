@@ -21,6 +21,7 @@ class VideoReceiverThread(QThread):
         self.uav_id=uav_id
         self.display_size=display_size
         self.socket.settimeout(3)
+        self.frame=None
 
     def run(self):
         while self.status:
@@ -42,12 +43,14 @@ class VideoReceiverThread(QThread):
                 self.updateFrame.emit(None,self.port)
                 self.streamReceived.emit(1,self.port)
                 self.printToCodeEditor.emit(f"video_receiver: Onboard PC id[{self.uav_id}] disconnected!")
+                self.frame = None
                 continue
             # s.setblocking(False)
             # print(len(stringData))
             data = numpy.frombuffer(stringData, numpy.uint8)  # 将获取到的字符流数据转换成1维数组
             start3 = time.time()
             frame = cv2.imdecode(data, cv2.IMREAD_COLOR)  # 将数组解码成图像
+            self.frame=frame
             #cv2.imshow('SERVER', decimg)  # 显示图像
 
             end = time.time()
