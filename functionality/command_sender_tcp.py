@@ -44,7 +44,12 @@ class CommandSender(QThread):
 
     def _sendCommand(self,data,uav_id):
         print(f"command_sender: Sending command{data} to onboard PC id[{uav_id}]...")
-        self.conns[uav_id].sendall(data.encode())
+        try:
+            self.conns[uav_id].sendall(data.encode())
+        except Exception as e:
+            print(f"command_sender: warning: command{data} sending failed of id[{uav_id}] disconnected!")
+            self.printToCodeEditor.emit(
+                f"command_sender: warning: command{data} sending failed of id[{uav_id}] disconnected!")
 
     def _responseReceiver(self,uav_id):
         while self.status==1:
@@ -58,6 +63,7 @@ class CommandSender(QThread):
             else:
                 if response.find("setv"):
                     with self.conditions[uav_id]:
+                        self.response=response
                         self.conditions[uav_id].notify()
                 print(f'command_sender: id[{uav_id}] response:\n"{response}"')
                 # f'<font style="white-space: pre-line;" color=\"{color}\">{text}</font>'
@@ -85,7 +91,7 @@ class CommandSender(QThread):
     def sendCommandWithResponse(self,command_input):
         command = command_input.strip()
         if len(command) == 0:
-            return
+            return False
         command_split = re.split("[^A-Za-z0-9_.-]+", command)
         # print(command_split)
         temp = command.find("@")
@@ -96,13 +102,20 @@ class CommandSender(QThread):
             self._sendCommand(msg, uav_id)
             with self.conditions[uav_id]:
                 self.conditions[uav_id].wait()
+                if self.response.find("error"):
+                    return False
+            return True
         else:
             for uav_id in self.conns.keys():
                 msg = json.dumps(command_split)
                 self._sendCommand(msg, uav_id)
             for uav_id in self.conns.keys():
                 with self.conditions[uav_id]:
+                    #!!!!!!!!!!!!!!!!!!!!
                     self.conditions[uav_id].wait()
+                    if self.response.find("error"):
+                        return False
+            return True
         #print("sendCommandWithResponse ended.")
 
 

@@ -15,7 +15,7 @@ from mydronesdk.my_drone_sdk import MyDroneSDK
 import sys
 
 # Speed of the drone
-S = 60
+S = 0.4
 # Frames per second of the pygame window display
 # A low number also results in input lag, as input information is processed once per frame.
 FPS = 15
@@ -24,16 +24,16 @@ FPS = 15
 #   Set some parameter
 ###############################
 net_h, net_w = 416, 416  # 416, 416  # a multiple of 32, the smaller the faster
-obj_thresh, nms_thresh = 0.8, 0.45
+obj_thresh, nms_thresh = 0.6, 0.45
 frame_height, frame_width, frame_channel = 720, 960, 3
 z_lower, z_upper = 0, 1200
 step_duration = 2
 
-save_id = 6
-vel_scale = 55
+save_id = 1
+vel_scale = 0.55
 left_right_velocity_rate = 1  # 0.8
 forward_backward_velocity_rate = 1
-up_down_velocity_rate = 0.8
+up_down_velocity_rate = 0.6
 yaw_velocity_rate = 70
 
 class FrontEnd:
@@ -74,7 +74,7 @@ class FrontEnd:
 
     def run(self):
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(f'property/output{save_id}.avi', fourcc, FPS, (frame_width, frame_height))
+        out = cv2.VideoWriter(f'D:\PYCHARMWORKSPACE\PyOneDark_Qt_Widgets_Modern_GUI-master\property/output{save_id}.avi', fourcc, FPS, (frame_width, frame_height))
 
         frame_read = self.drone.video_receiver
 
@@ -101,11 +101,14 @@ class FrontEnd:
                             self.manual_flag = True
 
             if frame_read.status!=2:
-                break
+                continue
 
             self.screen.fill([0, 0, 0])
 
-            frame = frame_read.frame
+            try:
+                frame = cv2.resize(frame_read.frame,(frame_width,frame_height))
+            except BaseException as e:
+                continue
             out.write(frame)
             # text = "Battery: {}%".format(self.tello.get_battery())
             # cv2.putText(frame, text, (5, 720 - 5),
@@ -144,9 +147,9 @@ class FrontEnd:
         elif key == pygame.K_s:  # set down velocity
             self.up_down_velocity = -S
         elif key == pygame.K_a:  # set yaw counter clockwise velocity
-            self.yaw_velocity = -S
+            self.yaw_velocity = -S*50
         elif key == pygame.K_d:  # set yaw clockwise velocity
-            self.yaw_velocity = S
+            self.yaw_velocity = S*50
         # elif key == pygame.K_h:  # set yaw clockwise velocity
         #     print(self.tello.get_height())
 
@@ -170,7 +173,11 @@ class FrontEnd:
             self.drone.land()
             self.send_rc_control = False
         elif key == pygame.K_p:  # prepare
-            self.drone.prepare()
+            try:
+                self.drone.prepare()
+            except Exception as e:
+                pass
+            #else:
             self.send_rc_control = True
 
     def update(self):
@@ -189,7 +196,7 @@ def box_thread(drone,front_end,target_id=14):
     """
 
     # setting config path for YOLO config
-    config_path = 'mydronesdk/ddpg_yolo_control/yolo_assets/config_voc.json'
+    config_path = 'D:\PYCHARMWORKSPACE\PyOneDark_Qt_Widgets_Modern_GUI-master\mydronesdk/ddpg_yolo_control/yolo_assets/config_voc.json'
     with open(config_path) as config_buffer:
         config = json.load(config_buffer)
 
@@ -205,17 +212,17 @@ def box_thread(drone,front_end,target_id=14):
     env = AirsimEnv(False, sim_flag=False)
     agent = RLAgent(env)
     ENV_NAME = 'drone'
-    agent.agent.load_weights('mydronesdk/ddpg_yolo_control/rl_airsim/ddpg_{}_weights_5.h5f'.format(ENV_NAME))
+    agent.agent.load_weights('D:/PYCHARMWORKSPACE/PyOneDark_Qt_Widgets_Modern_GUI-master/mydronesdk/ddpg_yolo_control/rl_airsim/ddpg_{}_weights_5.h5f'.format(ENV_NAME))
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(f'property/output_box{save_id}.avi', fourcc, 2, (frame_width, frame_height))
+    out = cv2.VideoWriter(f'D:\PYCHARMWORKSPACE\PyOneDark_Qt_Widgets_Modern_GUI-master\property/output_box{save_id}.avi', fourcc, 2, (frame_width, frame_height))
     print('YOLO detection ok')
 
     while not front_end.should_stop:
         try:
-            frame_glob=cv2.resize(drone.video_receiver.frame,(frame_width,frame_height))
+            frame_glob=drone.video_receiver.frame
             if frame_glob is not None:
-                frame = copy.deepcopy(frame_glob)
+                frame = cv2.resize(frame_glob,(frame_width,frame_height))
                 # call prection function of YOLO algorithm to return boxes
                 boxes = \
                     get_yolo_boxes(infer_model, [frame],
@@ -232,11 +239,12 @@ def box_thread(drone,front_end,target_id=14):
                 # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 # frame = np.rot90(frame)
                 # frame = np.flipud(frame)
-                # cv2.imshow("show", frame)
+                cv2.imshow("show", frame)
+                cv2.waitKey(1)
                 # state[4]=(tello.get_height()-z_lower) / (z_upper - z_lower)
                 state[4] = (300 - z_lower) / (z_upper - z_lower)
                 action = agent.agent.my_forward_for_test(state) * vel_scale
-                print("action:", action)
+                #print("action:", action)
                 left_right_velocity, forward_backward_velocity, up_down_velocity, yaw_velocity = action
                 # tello.send_rc_control(round(-left_right_velocity*left_right_velocity_rate),
                 #                       round(forward_backward_velocity*forward_backward_velocity_rate),
@@ -248,9 +256,9 @@ def box_thread(drone,front_end,target_id=14):
                                             up_down_velocity *up_down_velocity_rate,
                                             yaw_velocity / vel_scale * yaw_velocity_rate)
                 timer = time.time()
-                text = f"{round(left_right_velocity * left_right_velocity_rate)}, " \
-                       f"{round(forward_backward_velocity * forward_backward_velocity_rate)}," \
-                       f"{round(up_down_velocity * up_down_velocity_rate)}, {round(yaw_velocity / vel_scale * yaw_velocity_rate)}"
+                text = f"{-left_right_velocity * left_right_velocity_rate}, " \
+                       f"{forward_backward_velocity * forward_backward_velocity_rate}, " \
+                       f"{up_down_velocity * up_down_velocity_rate}, {yaw_velocity / vel_scale * yaw_velocity_rate}"
                 cv2.putText(frame, text, (50, 720 - 5),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 out.write(frame)
@@ -268,10 +276,10 @@ def box_thread(drone,front_end,target_id=14):
 
 
 def script(command_sender,video_receiver):
-    drone=MyDroneSDK(command_sender, video_receiver)
+    drone=MyDroneSDK("1",command_sender, video_receiver)
     frontend = FrontEnd(drone)
 
-    thread_box = threading.Thread(target=box_thread, args=(drone,frontend,14))
+    thread_box = threading.Thread(target=box_thread, args=(drone,frontend,1))
     # thread_box.setDaemon(True)
     thread_box.start()
     # time.sleep(5)

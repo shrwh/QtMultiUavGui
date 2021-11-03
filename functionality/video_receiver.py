@@ -34,7 +34,7 @@ class VideoReceiverThread(QThread):
                     #print(f'video_receiver: Onboard PC id[{self.uav_id}] timed out!')
                     self.updateFrame.emit(None, self.port)
 
-            start1 = time.time()  # 用于计算帧率信息
+            #start1 = time.time()  # 用于计算帧率信息
             try:
                 stringData, addr = self.socket.recvfrom(50000)  # 根据获得的文件长度，获取图片文件
             except socket.timeout:
@@ -46,14 +46,14 @@ class VideoReceiverThread(QThread):
                 self.frame = None
                 continue
             # s.setblocking(False)
-            # print(len(stringData))
+            #print(len(stringData),type(stringData))
             data = numpy.frombuffer(stringData, numpy.uint8)  # 将获取到的字符流数据转换成1维数组
-            start3 = time.time()
+            #start3 = time.time()
             frame = cv2.imdecode(data, cv2.IMREAD_COLOR)  # 将数组解码成图像
             self.frame=frame
             #cv2.imshow('SERVER', decimg)  # 显示图像
 
-            end = time.time()
+            #end = time.time()
             #print(end - start1, start3 - start1)
             # seconds = end - start1
             # fps = 1 / seconds
