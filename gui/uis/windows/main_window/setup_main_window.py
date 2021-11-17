@@ -284,7 +284,6 @@ class SetupMainWindow:
         @Slot()
         def stop_button_clicked():
             self.code_editor.enterCode("stop")
-            self.command_sender.printToReminderBox.emit("test,hello")
 
         self.bnt_stop = PyPushButton(
             text="stop",
