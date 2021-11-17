@@ -245,16 +245,14 @@ class SetupMainWindow:
                         print(key,value.text())
                 print("=" * 50)
             elif command_input.strip()=="s1":
-                # def prepare():
-                #     self.command_sender.sendCommandWithResponse("setv -p True")
-                # def set_velocity_body(*args):
-                #     self.command_sender.sendCommand(f"setv -f {args[0]} -l {args[1]} -u {args[2]} -y {args[3]}")
-                #     import time
-                #     time.sleep(args[4])
                 from mydronesdk.ddpg_yolo_control import script
                 script.script(self.command_sender,self.video_receiver_1)
+            elif command_input.strip().find("stop")!=-1:
+                if self.command_sender.sendCommandWithResponse(command_input):
+                    self.command_sender.sendCommand(command_input.replace("stop","land"))
             else:
                 self.command_sender.sendCommand(command_input)
+
         self.code_editor.line_edit.returnPressed.connect(sendCommand)
 
         # LEFT COLUMN
@@ -262,6 +260,7 @@ class SetupMainWindow:
         @Slot()
         def takeoff_button_clicked():
             self.code_editor.enterCode("takeoff")
+
 
         self.bnt_takeoff=PyPushButton(
             text="takeoff",
@@ -285,6 +284,7 @@ class SetupMainWindow:
         @Slot()
         def stop_button_clicked():
             self.code_editor.enterCode("stop")
+            self.command_sender.printToReminderBox.emit("test,hello")
 
         self.bnt_stop = PyPushButton(
             text="stop",
@@ -491,9 +491,29 @@ class SetupMainWindow:
         @Slot(str)
         def printToCodeEditor(text):
             self.code_editor.appendTextLine(text,"red")
+
+        @Slot(str)
+        def printToReminderBox(text):
+            rb = MyReminderBox(
+                text=text,
+                parent=self.ui.title_bar,
+                bg_color=self.themes["app_color"]["dark_two"],
+                text_font=f'{self.settings["font"]["text_size"]}pt "{self.settings["font"]["family"]}"',
+                color=self.themes["app_color"]["text_foreground"],
+                border_radius=10,
+                btn_radius=8,
+                btn_color=self.themes["app_color"]["text_foreground"],
+                btn_bg_color=self.themes["app_color"]["dark_one"],
+                btn_bg_color_hover=self.themes["app_color"]["dark_three"],
+                btn_bg_color_pressed=self.themes["app_color"]["dark_four"])
+            rb.show()
+
         self.command_sender.printToCodeEditor.connect(printToCodeEditor)
         self.video_receiver_1.printToCodeEditor.connect(printToCodeEditor)
         self.video_receiver_2.printToCodeEditor.connect(printToCodeEditor)
+        self.command_sender.printToReminderBox.connect(printToReminderBox)
+        self.video_receiver_1.printToReminderBox.connect(printToReminderBox)
+        self.video_receiver_2.printToReminderBox.connect(printToReminderBox)
 
         self.ui.load_pages.layout_code.addWidget(self.code_editor)
 

@@ -11,6 +11,7 @@ class VideoReceiverThread(QThread):
     updateFrame = Signal(QImage,int)
     streamReceived = Signal(int,int)
     printToCodeEditor = Signal(str)
+    printToReminderBox=Signal(str)
 
     def __init__(self, port, uav_id,display_size=(640, 480), parent=None):
         QThread.__init__(self, parent)
@@ -43,6 +44,7 @@ class VideoReceiverThread(QThread):
                 self.updateFrame.emit(None,self.port)
                 self.streamReceived.emit(1,self.port)
                 self.printToCodeEditor.emit(f"video_receiver: Onboard PC id[{self.uav_id}] disconnected!")
+                self.printToReminderBox.emit(f"Onboard PC id[{self.uav_id}] disconnected!")
                 self.frame = None
                 continue
             # s.setblocking(False)

@@ -10,6 +10,7 @@ import sys
 import numpy
 import asyncio
 import argparse
+import traceback
 from yolo_detect import detect_center
 
 
@@ -204,7 +205,8 @@ class OnboardPostbox:
                     except asyncio.CancelledError:
                         ph.print(f"onboard_postbox id[{self.async_object.uavId}]: takeoff cancelled.")
                     except Exception as e:
-                        ph.print(f"onboard_postbox id[{self.async_object.uavId}]: takeoff error:\n" + str(e))
+                        ph.print(
+                            f"onboard_postbox id[{self.async_object.uavId}]: takeoff error:\n" + traceback.format_exc())
                     # self.command.remove("takeoff")
                     # tasks.pop("takeoff")
 
@@ -257,7 +259,8 @@ class OnboardPostbox:
                     except asyncio.CancelledError:
                         ph.print(f"onboard_postbox id[{self.async_object.uavId}]: setv cancelled.")
                     except Exception as e:
-                        ph.print(f"onboard_postbox id[{self.async_object.uavId}]: setv error:\n" + str(e))
+                        ph.print(
+                            f"onboard_postbox id[{self.async_object.uavId}]: setv error:\n" + traceback.format_exc())
                     # self.command.remove("takeoff")
                     # tasks.pop("test")
 
@@ -285,7 +288,8 @@ class OnboardPostbox:
                     except asyncio.CancelledError:
                         ph.print(f"onboard_postbox id[{self.async_object.uavId}]: land cancelled.")
                     except Exception as e:
-                        ph.print(f"onboard_postbox id[{self.async_object.uavId}]: land error:\n" + str(e))
+                        ph.print(
+                            f"onboard_postbox id[{self.async_object.uavId}]: land error:\n" + traceback.format_exc())
 
                 task.add_done_callback(callback)
                 tasks["land"] = task
@@ -313,8 +317,8 @@ class OnboardPostbox:
             #     0, 0, 0, 0))
             # task = asyncio.run_coroutine_threadsafe(temp(),self.loop)
             task_test = tasks.get("test")
-            if task_test:
-                print(task_test.done(), task_test.cancelled())
+            # if task_test:
+            #     print(task_test.done(), task_test.cancelled())
             if task_test is None or task_test.done():
 
                 def callback(future):
@@ -322,13 +326,12 @@ class OnboardPostbox:
                         result = future.result()
                         if result is None:
                             result = "test succeeded."
-                        ph.print(f"onboard_postbox id[{self.async_object.uavId}]: test result:\n", result)
+                        ph.print(f"onboard_postbox id[{self.async_object.uavId}]: test result:\n" + str(result))
                     except asyncio.CancelledError:
                         ph.print(f"onboard_postbox id[{self.async_object.uavId}]: test cancelled.")
                     except Exception as e:
-                        ph.print(f"onboard_postbox id[{self.async_object.uavId}]: test error:\n" + str(e))
-                    # self.command.remove("takeoff")
-                    # tasks.pop("test")
+                        ph.print(
+                            f"onboard_postbox id[{self.async_object.uavId}]: test error:\n" + traceback.format_exc())
 
                 task.add_done_callback(callback)
                 tasks["test"] = task
@@ -350,6 +353,7 @@ class VideoHandlerProcess(mp.Process):
         self.frame = None
         self.condition = condition
         self.conn = conn
+        self.detect_box = {'red': [], 'yellow': []}
 
     def run(self):
         self.t1 = Thread(target=self.video_sender)
@@ -383,8 +387,14 @@ class VideoHandlerProcess(mp.Process):
             stringData = data.tostring()
             s.sendto(stringData, self.address_video)
             ret, frame = capture.read()
-            cv2.resize(frame, (640, 480))
+            frame = cv2.resize(frame, (640, 480))
             self.frame = frame
+            if len(self.detect_box['red']):
+                point1, point2 = self.xywh2xyxy('red')
+                cv2.rectangle(frame, point1, point2, color=(0, 0, 255), thickness=2, lineType=cv2.LINE_AA)
+            if len(self.detect_box['yellow']):
+                point1, point2 = self.xywh2xyxy('yellow')
+                cv2.rectangle(frame, point1, point2, color=(0, 255, 255), thickness=2, lineType=cv2.LINE_AA)
             timer8 = time.time()
             while timer8 - timer1 < 0.0666:
                 time.sleep(0.006)
@@ -395,6 +405,14 @@ class VideoHandlerProcess(mp.Process):
         cv2.destroyAllWindows()
         s.close()
         print(f"onboard_postbox id[{self.uavId}]: video_sender ended")
+
+    def xywh2xyxy(self, type):
+        center = self.detect_box[type]
+        if not len(center):
+            return
+        x1y1 = (int(center[0] - center[2] / 2), int(center[1] - center[3] / 2))
+        x2y2 = (int(center[0] + center[2] / 2), int(center[1] + center[3] / 2))
+        return x1y1, x2y2
 
 
 def gstreamer_pipeline(

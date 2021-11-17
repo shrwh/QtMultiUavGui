@@ -7,7 +7,7 @@ import multiprocessing as mp
 
 # 目标检测
 def detect_center(frame_cap,condition:mp.Condition,conn:mp.Pipe):
-    weights, imgsz = '/home/nvidia/yolov3/best.pt', 640
+    weights, imgsz = '/home/nvidia/yolov3/core_mi.pt', 640
     # Initialize
     set_logging()
     device = select_device('')
@@ -22,7 +22,7 @@ def detect_center(frame_cap,condition:mp.Condition,conn:mp.Pipe):
         model.half()  # to FP16
 
     while True:
-        info={"red":None,"yellow":None}
+        #info={"red":None,"yellow":None}
         with condition:
             condition.wait()
         image = frame_cap.frame
@@ -45,7 +45,7 @@ def detect_center(frame_cap,condition:mp.Condition,conn:mp.Pipe):
 
         # Inference
         t1 = time_synchronized()
-        pred = model(img, augment=True)[0]
+        pred = model(img, augment=False)[0]
 
         # Apply NMS
         pred = non_max_suppression(pred, agnostic=True, max_det=300)
@@ -71,18 +71,18 @@ def detect_center(frame_cap,condition:mp.Condition,conn:mp.Pipe):
                 # Write results
                 for *xyxy, conf, cls in det_new:
                     ans = torch.tensor(xyxy).view(1, 4).tolist()[0]
-                    ans = [(ans[1] + ans[3]) / 2, (ans[0] + ans[2]) / 2]
+                    ans = [(ans[0] + ans[2]) / 2, (ans[1] + ans[3]) / 2, ans[2]-ans[0],  ans[3]-ans[1] ]
                     if (not int(cls)):
-                        info['red'] = ans
+                        frame_cap.detect_box['red'] = ans
                     else:
-                        info['yellow'] = ans
-                print(info['red'])
+                        frame_cap.detect_box['yellow'] = ans
+                print(frame_cap.detect_box['red'])
             else:
-                info['red'] = None
-                info['yellow'] = None
+                frame_cap.detect_box['red'] = []
+                frame_cap.detect_box['yellow'] = []
 
-        print(info)
-        conn.send(info)
+        #print(info)
+        conn.send(frame_cap.detect_box)
             # Print time (inference + NMS)
             # print(f'{s}Done. ({t2 - t1:.3f}s)')
             # print("end detect one image")

@@ -1,7 +1,7 @@
 {
     "app_name": "Multi-UAV-Dev GUI",
     "version" : "v1.0.0",
-    "copyright" : "By: Wanderson M. Pimenta",
+    "copyright" : "By: Lab of FLML from Tongji",
     "year" : 2021,
     "theme_name" : "default",
     "custom_title_bar": true,

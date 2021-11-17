@@ -71,3 +71,5 @@ from . py_line_edit import PyLineEdit
 from . py_table_widget import PyTableWidget
 
 from .my_code_edit import *
+
+from .my_reminder_box import *
