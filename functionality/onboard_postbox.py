@@ -11,6 +11,7 @@ import numpy
 import asyncio
 import argparse
 import traceback
+import struct
 from yolo_detect import detect_center
 
 
@@ -54,25 +55,16 @@ class PrintHelper:
 
 class OnboardPostbox:
     def __init__(self,
-                 address, video_port, info_port, command_port,
-                 # con_comm:Condition,
-                 # command: list, info: dict,
-                 peer_addresses: tuple, peer_info_port,
+                 address, video_port, info_multicast_ip, info_multicast_port, command_port,
                  info_sleep,
                  loop, async_object,
                  video_flip_method):
         super().__init__()
         self.address_video = (address, video_port)
-        self.address_info = (address, info_port)
+        self.address_info = (info_multicast_ip, info_multicast_port)
         self.address_command = (address, command_port)
-        self.addresses_peer_info = []
-        for each in peer_addresses:
-            self.addresses_peer_info.append((each, peer_info_port))
-        self.port_peer_info = peer_info_port
         self.info = async_object.Info
         self.info_sleep = info_sleep
-        # self.con_comm=con_comm
-        # self.command = command
         self.loop = loop
         self.async_object = async_object
         self.video_flip_method = video_flip_method
@@ -93,32 +85,38 @@ class OnboardPostbox:
         self.p1.start()
 
     def close(self):
-        # self.p1.join()
+        self.p1.should_continue = False
         self.should_continue = False
+        self.p1.join()
         self.t1.join()
         # self.t3.join()
         print(f"onboard_postbox id[{self.async_object.uavId}]: All ended.")
 
     def info_sender(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        # s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST,1)
         while self.should_continue:
             msg = json.dumps(self.info)
             data = msg.encode()
             s.sendto(data, self.address_info)
-            for each in self.addresses_peer_info:
-                s.sendto(data, each)
             time.sleep(self.info_sleep)
         s.close()
         print(f"onboard_postbox id[{self.async_object.uavId}]: info_sender ended")
 
     def info_receiver(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.bind(('', self.port_peer_info))
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        s.bind(('', self.address_info[1]))
+        # 加入组播组
+        mreq = struct.pack("=4sl", socket.inet_aton(self.address_info[0]), socket.INADDR_ANY)
+        s.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
         while self.should_continue:
             data, addr = s.recvfrom(1024)
             msg = data.decode()
             info = json.loads(msg)
-            self.async_object.otheruav_inf[f"{info['uavId']}"] = info
+            id_from = info['uavId']
+            if id_from != self.async_object.uavId:
+                self.async_object.otheruav_inf[str(id_from)] = info
+                # print(id_from)
         s.close()
 
     def command_receiver(self):

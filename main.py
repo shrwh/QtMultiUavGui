@@ -83,8 +83,8 @@ class MainWindow(QMainWindow):
         self.video_receiver_2.terminate()
         self.info_receiver_1.status = 0
         self.info_receiver_1.terminate()
-        self.info_receiver_2.status = 0
-        self.info_receiver_2.terminate()
+        #self.info_receiver_2.status = 0
+        #self.info_receiver_2.terminate()
         # Give time for the thread to finish
         time.sleep(1)
         QMainWindow.closeEvent(self,event)

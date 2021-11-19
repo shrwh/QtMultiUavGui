@@ -410,24 +410,12 @@ class SetupMainWindow:
             labels_info[info_id].setMinimumWidth(200)
             formLayout_info.addRow(_label, labels_info[info_id])
 
-        @Slot(int,dict)
-        def infoDisplayAddrBind(state,info):
-            if state==1 and info is not None:
-                uavId=info["uavId"]
-                self.labels_info[uavId]={}
-                for key,value in info.items():
-                    info_id = str(uavId) + key
-                    if value is None or type(value) != dict:
-                        insertInfoDisplay(key, value, info_id)
-                    else:
-                        for _key,_value in value.items():
-                            info_id = info_id + _key
-                            insertInfoDisplay(_key, _value, info_id)
-                self.ui.load_pages.page_4.update()
-                #print(self.labels_info)
-            elif state==2 and info is not None:
-                #print(self.labels_info)
+        @Slot(dict)
+        def infoDisplay(info):
+            if info is not None:
                 uavId = info["uavId"]
+                if self.labels_info.get(uavId) is None:
+                    self.labels_info[uavId] = {}
                 labels_info=self.labels_info[uavId]
                 update_flag=False
                 for key,value in info.items():
@@ -457,12 +445,12 @@ class SetupMainWindow:
                 pass
                 # print("waiting for info...")
 
-        self.info_receiver_1=InfoReceiverThread(8001)
-        self.info_receiver_1.infoReceived.connect(infoDisplayAddrBind)
-        self.info_receiver_2=InfoReceiverThread(8002)
-        self.info_receiver_2.infoReceived.connect(infoDisplayAddrBind)
+        self.info_receiver_1=InfoReceiverThread("234.2.2.2",8001)
+        self.info_receiver_1.infoReceived.connect(infoDisplay)
+        #self.info_receiver_2=InfoReceiverThread(8002)
+        #self.info_receiver_2.infoReceived.connect(infoDisplayAddrBind)
         self.info_receiver_1.start()
-        self.info_receiver_2.start()
+        #self.info_receiver_2.start()
 
         # Page5
         # ///////////////////////////////////////////////////////////////
