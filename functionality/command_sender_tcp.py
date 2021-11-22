@@ -19,6 +19,7 @@ class CommandSender(QThread):
         self.conns={}
         self.conditions={}
         self.response_waited=None
+        self.response=""
 
     def run(self):
         self.socket.listen()
@@ -52,6 +53,7 @@ class CommandSender(QThread):
             print(f"command_sender: warning: command{data} sending failed of id[{uav_id}] disconnected!")
             self.printToCodeEditor.emit(
                 f"command_sender: warning: command{data} sending failed of id[{uav_id}] disconnected!")
+            self.printToReminderBox.emit(f"Command{data} sending failed of id[{uav_id}] disconnected!")
 
     def _responseReceiver(self,uav_id):
         while self.status==1:
@@ -64,12 +66,11 @@ class CommandSender(QThread):
                 time.sleep(0.5)
             else:
                 if self.response_waited and response.find(self.response_waited)!=-1:
-                    self.response_waited=None
                     with self.conditions[uav_id]:
-                        self.response=response
+                        self.response+=response
                         self.conditions[uav_id].notify()
-                if response.find("error") != -1 or response.find("cancelled") != -1:
-                    self.printToReminderBox.emit("Some remote error happened, see page3 for more information.")
+                if response.find("error") != -1 or response.find("warning") != -1:
+                    self.printToReminderBox.emit("Some onboard error happened, see page3 for more information.")
                 print(f'command_sender: id[{uav_id}] response:\n"{response}"')
                 # f'<font style="white-space: pre-line;" color=\"{color}\">{text}</font>'
                 temp=f'<font style="white-space: pre-line;" color=\"black\">id[{uav_id}] response:\n</font>'\
@@ -87,10 +88,12 @@ class CommandSender(QThread):
             _command = command_split[:-1]
             uav_id = command_split[-1]
             msg = json.dumps(_command)
+            self.printToReminderBox.emit(f"Sending command{msg} to onboard PC id[{uav_id}]...")
             self._sendCommand(msg, uav_id)
         else:
+            msg = json.dumps(command_split)
+            self.printToReminderBox.emit(f"Sending command{msg} to {len(self.conns)} onboard PCs...")
             for uav_id in self.conns.keys():
-                msg = json.dumps(command_split)
                 self._sendCommand(msg, uav_id)
 
     def sendCommandWithResponse(self,command_input):
@@ -108,9 +111,6 @@ class CommandSender(QThread):
             self._sendCommand(msg, uav_id)
             with self.conditions[uav_id]:
                 self.conditions[uav_id].wait()
-            if self.response.find("error")!=-1 or self.response.find("cancelled")!=-1:
-                return False
-            return True
         else:
             for uav_id in self.conns.keys():
                 msg = json.dumps(command_split)
@@ -119,9 +119,13 @@ class CommandSender(QThread):
                 with self.conditions[uav_id]:
                     #!!!!!!!!!!!!!!!!!!!!
                     self.conditions[uav_id].wait()
-                if self.response.find("error")!=-1 or self.response.find("cancelled")!=-1:
-                    return False
-            return True
+        self.response_waited = None
+        response=self.response
+        self.response = ""
+        if response.find("error") != -1 or response.find("cancelled") != -1 \
+                or response.find("warning") != -1:
+            return False
+        return True
         #print("sendCommandWithResponse ended.")
 
 

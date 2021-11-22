@@ -185,7 +185,12 @@ class CodeInputLine(PyLineEdit):
 
     def saveHistory(self):
         a = np.array(self.code_history)
-        np.save("property/cookie.npy", a)
+        import os
+        try:
+            np.save("properties/cookie.npy", a)
+        except Exception:
+            os.makedirs("./properties")
+            np.save("properties/cookie.npy", a)
 
     def loadHistory(self):
         try:

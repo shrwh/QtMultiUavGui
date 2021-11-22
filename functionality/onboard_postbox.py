@@ -308,6 +308,7 @@ class OnboardPostbox:
                 delattr(args, "function")
                 task = eval(f"asyncio.run_coroutine_threadsafe(self.async_object.{func}(**args.__dict__), self.loop)")
             else:
+                delattr(args, "function")
                 task = asyncio.run_coroutine_threadsafe(self.async_object.test(**args.__dict__), self.loop)
             # from mavsdk.offboard import VelocityBodyYawspeed
             # async def temp():
