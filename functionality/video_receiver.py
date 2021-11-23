@@ -68,6 +68,15 @@ class VideoReceiverThread(QThread):
         cv2.destroyAllWindows()
         sys.exit(-1)
 
+    def _put_text_to_frame(self,frame,text,width,height):
+        cv2.putText(frame, text, (width, height),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        height += 20
+        if height > self.save_size[1] - 20:
+            width, height = self.save_size[0] - 200, 20
+        return width,height
+
+
     def _save_video(self):
         if self.save_flag:
             frame_width, frame_height=self.save_size
@@ -77,12 +86,15 @@ class VideoReceiverThread(QThread):
             frame = cv2.resize(self.frame, (frame_width, frame_height))
             info=self.info_receiver.info.get(str(self.uav_id))
             if info is not None:
-                height=20
+                width,height=5,20
                 for key,value in info.items():
-                    text = f"{key}:{value}"
-                    cv2.putText(frame, text, (5, height),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-                    height+=20
+                    if value is None or type(value) != dict:
+                        text = f"{key}:{value}"
+                        width,height=self._put_text_to_frame(frame,text,width,height)
+                    else:
+                        for _key,_value in value.items():
+                            text = f"{_key}:{_value}"
+                            width, height = self._put_text_to_frame(frame, text, width, height)
             self.out.write(frame)
 
     def change_save_video_flag(self,flag,frame_width=640, frame_height=480):
