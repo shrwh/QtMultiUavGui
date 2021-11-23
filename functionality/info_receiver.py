@@ -27,19 +27,24 @@ class InfoReceiverThread(QThread):
     def __init__(self, multicast_ip,multicast_port, parent=None):
         QThread.__init__(self, parent)
         self.status = 1
+        self._init_socket(multicast_ip,multicast_port)
+        self.info={}
+
+    def _init_socket(self,multicast_ip,multicast_port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.socket.bind(('', multicast_port))
         # 加入组播组
-        #mreq = struct.pack("=4sl", socket.inet_aton("234.2.2.2"), socket.INADDR_ANY)
-        group=socket.inet_aton(multicast_ip)
-        iface=socket.inet_aton(get_host_ip())
-        self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, group+iface)
+        # mreq = struct.pack("=4sl", socket.inet_aton("234.2.2.2"), socket.INADDR_ANY)
+        group = socket.inet_aton(multicast_ip)
+        iface = socket.inet_aton(get_host_ip())
+        self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, group + iface)
 
     def run(self):
         while self.status!=0:
             data, addr = self.socket.recvfrom(1024)
             msg = data.decode()
             info = json.loads(msg)
+            self.info[str(info["uavId"])]=info
             self.infoReceived.emit(info)
             self.status = 2
         self.socket.close()

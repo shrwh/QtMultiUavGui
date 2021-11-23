@@ -224,10 +224,14 @@ class SetupMainWindow:
         # ///////////////////////////////////////////////////////////////
         self.command_sender = CommandSender()
         self.command_sender.start()
+        # Info Receiver
+        # ///////////////////////////////////////////////////////////////
+        self.info_receiver=InfoReceiverThread("234.2.2.2",8001)
         # Video Receiver
         # ///////////////////////////////////////////////////////////////
         self.video_display_size = (384, 288)  # 640,480 *0.6
-        self.video_receiver_1 = VideoReceiverThread(8003, 1, self.video_display_size)
+        self.video_receiver_1 = VideoReceiverThread(8003, 1,self.info_receiver, self.video_display_size)
+        self.video_receiver_2 = VideoReceiverThread(8004,2,self.info_receiver,self.video_display_size)
         # Code Editor
         # ///////////////////////////////////////////////////////////////
         self.code_editor = MyCodeEditor()
@@ -261,7 +265,6 @@ class SetupMainWindow:
         def takeoff_button_clicked():
             self.code_editor.enterCode("takeoff")
 
-
         self.bnt_takeoff=PyPushButton(
             text="takeoff",
             radius=8,
@@ -274,13 +277,6 @@ class SetupMainWindow:
         self.ui.left_column.menus.btn_1_layout.addWidget(self.bnt_takeoff)
         self.bnt_takeoff.clicked.connect(takeoff_button_clicked)
 
-        # self.toggle_1=PyToggle(
-        #     width=50,
-        #     bg_color=self.themes["app_color"]["dark_one"],
-        #     circle_color=self.themes["app_color"]["icon_color"],
-        #     active_color=self.themes["app_color"]["context_color"],
-        # )
-        # self.ui.left_column.menus.btn_2_layout.addWidget(self.toggle_1,0,Qt.AlignCenter)
         @Slot()
         def stop_button_clicked():
             self.code_editor.enterCode("stop")
@@ -315,6 +311,22 @@ class SetupMainWindow:
 
         self.left_column_line_edit.returnPressed.connect(leftColumnLineEditReturnPressedMethod)
         self.ui.left_column.menus.btn_3_layout.addWidget(self.left_column_line_edit)
+
+        self.toggle_save_video = PyToggle(
+            width=50,
+            bg_color=self.themes["app_color"]["dark_one"],
+            circle_color=self.themes["app_color"]["icon_color"],
+            active_color=self.themes["app_color"]["context_color"],
+        )
+
+        @Slot()
+        def changeSaveVideoFlag():
+            flag=self.toggle_save_video.isChecked()
+            self.video_receiver_1.change_save_video_flag(flag)
+            self.video_receiver_2.change_save_video_flag(flag)
+
+        self.toggle_save_video.stateChanged.connect(changeSaveVideoFlag)
+        self.ui.left_column.menus.btn_4_layout.addWidget(self.toggle_save_video, 0, Qt.AlignCenter)
 
         # Page1
         # ///////////////////////////////////////////////////////////////
@@ -358,11 +370,9 @@ class SetupMainWindow:
                         not any(self.video_received_flags.values()):
                     MainFunctions.set_page(self, self.ui.load_pages.page_1)
 
-        # self.video_receiver_1 = VideoReceiverThread(8003,1,self.video_display_size)
         self.video_receiver_1.updateFrame.connect(setImage)
         self.video_receiver_1.streamReceived.connect(changeMainPage)
         self.video_receiver_1.start()
-        self.video_receiver_2 = VideoReceiverThread(8004,2,self.video_display_size)
         self.video_receiver_2.updateFrame.connect(setImage)
         self.video_receiver_2.streamReceived.connect(changeMainPage)
         self.video_receiver_2.start()
@@ -445,12 +455,8 @@ class SetupMainWindow:
                 pass
                 # print("waiting for info...")
 
-        self.info_receiver_1=InfoReceiverThread("234.2.2.2",8001)
-        self.info_receiver_1.infoReceived.connect(infoDisplay)
-        #self.info_receiver_2=InfoReceiverThread(8002)
-        #self.info_receiver_2.infoReceived.connect(infoDisplayAddrBind)
-        self.info_receiver_1.start()
-        #self.info_receiver_2.start()
+        self.info_receiver.infoReceived.connect(infoDisplay)
+        self.info_receiver.start()
 
         # Page5
         # ///////////////////////////////////////////////////////////////

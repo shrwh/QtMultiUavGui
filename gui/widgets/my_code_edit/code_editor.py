@@ -194,7 +194,7 @@ class CodeInputLine(PyLineEdit):
 
     def loadHistory(self):
         try:
-            self.code_history = np.load("property/cookie.npy").tolist()
+            self.code_history = np.load("properties/cookie.npy").tolist()
         except Exception as e:
             pass
 
