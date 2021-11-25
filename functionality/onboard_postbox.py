@@ -1,7 +1,6 @@
 from ctypes import sizeof
 import socket
-import threading as trd
-from threading import Thread, Condition
+from threading import Thread
 import multiprocessing as mp
 import time
 import json
@@ -347,23 +346,29 @@ class VideoHandlerProcess(mp.Process):
         super().__init__()
         self.video_flip_method = video_flip_method
         self.address_video = address_video
-        self.uavId = uavId
+        self.uav_id = uavId
         self.should_continue = True
         self.frame = None
-        self.condition = condition
+        self.condition_p = condition
+        self.condition_t = mp.Condition()
         self.conn = conn
         self.detect_box = {'red': [], 'yellow': []}
+        self.flag={"video_id":0,"save_flag":False}
 
     def run(self):
         self.t1 = Thread(target=self.video_sender)
-        self.t2 = Thread(target=detect_center, args=(self, self.condition, self.conn))
+        self.t2 = Thread(target=detect_center, args=(self, self.condition_p, self.conn))
         self.t2.setDaemon(True)
+        self.t3=Thread(target=self.video_flag_listener)
+        self.t3.setDaemon(True)
+        self.t4=Thread(target=self.save_video_thread)
 
         self.t1.start()
         self.t2.start()
+        self.t3.start()
+        self.t4.start()
 
     def video_sender(self):
-        # address = ('192.168.1.103', 8002)
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # s.setblocking(False)
 
@@ -403,7 +408,7 @@ class VideoHandlerProcess(mp.Process):
         capture.release()
         cv2.destroyAllWindows()
         s.close()
-        print(f"onboard_postbox id[{self.uavId}]: video_sender ended")
+        print(f"onboard_postbox id[{self.uav_id}]: video_sender ended")
 
     def xywh2xyxy(self, type):
         center = self.detect_box[type]
@@ -412,6 +417,41 @@ class VideoHandlerProcess(mp.Process):
         x1y1 = (int(center[0] - center[2] / 2), int(center[1] - center[3] / 2))
         x2y2 = (int(center[0] + center[2] / 2), int(center[1] + center[3] / 2))
         return x1y1, x2y2
+
+    def video_flag_listener(self):
+        while True:
+            re=self.conn.recv()
+            self.flag[re[0]]=re[1]
+            if re[0]=="save_flag":
+                if re[1]:
+                    with self.condition_t:
+                        self.condition_t.notify_all()
+                else:
+                    self.out.release()
+
+    def save_video_thread(self):
+        frame_width, frame_height=640,480
+        if not os.path.exists('./properties'):
+            os.makedirs("./properties")
+        while self.should_continue:
+            with self.condition_t:
+                self.condition_t.wait()
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            save_id = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
+            self.out = cv2.VideoWriter(f'properties/{self.uav_id}_{save_id}.avi', fourcc, 15,
+                                       (frame_width, frame_height))
+            while self.flag["save_flag"] and self.should_continue:
+                timer = time.time()
+                frame = self.frame
+                if frame is None:
+                    frame = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
+                else:
+                    frame = cv2.resize(frame, (frame_width, frame_height))
+                # info=self.info_receiver.info.get(str(self.uav_id))
+                self.out.write(frame)
+                while time.time()-timer<0.066:
+                    time.sleep(0.006)
+        self.out.release()
 
 
 def gstreamer_pipeline(

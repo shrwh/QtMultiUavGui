@@ -5,6 +5,7 @@ import numpy as np
 from qt_core import *
 import sys
 import os
+import threading
 
 
 class VideoReceiverThread(QThread):
@@ -22,10 +23,14 @@ class VideoReceiverThread(QThread):
         self.port=port
         self.uav_id=uav_id
         self.display_size=display_size
-        self.socket.settimeout(1)
+        self.socket.settimeout(3)
         self.frame=None
         self.info_receiver=info_receiver
         self.save_flag = False
+        self.condition=threading.Condition()
+        t1=threading.Thread(target=self._save_video_thread)
+        t1.setDaemon(True)
+        t1.start()
 
     def run(self):
         while self.status:
@@ -35,7 +40,6 @@ class VideoReceiverThread(QThread):
                     self.status = 2
                     self.streamReceived.emit(3,self.port)
                 except socket.timeout:
-                    #print(f'video_receiver: Onboard PC id[{self.uav_id}] timed out!')
                     self.updateFrame.emit(None, self.port)
 
             #start1 = time.time()  # 用于计算帧率信息
@@ -56,7 +60,6 @@ class VideoReceiverThread(QThread):
             #start3 = time.time()
             frame = cv2.imdecode(data, cv2.IMREAD_COLOR)  # 将数组解码成图像
             self.frame=frame
-            self._save_video()
             # Creating and scaling QImage
             h, w, ch = frame.shape
             img = QImage(frame.data, w, h, frame.strides[0], QImage.Format_BGR888)
@@ -76,26 +79,34 @@ class VideoReceiverThread(QThread):
             width, height = self.save_size[0] - 200, 20
         return width,height
 
-
-    def _save_video(self):
-        if self.save_flag:
-            frame_width, frame_height=self.save_size
-            # if self.frame is None:
-            #     frame=np.zeros((frame_height,frame_width,3))
-            # else:
-            frame = cv2.resize(self.frame, (frame_width, frame_height))
-            info=self.info_receiver.info.get(str(self.uav_id))
-            if info is not None:
-                width,height=5,20
-                for key,value in info.items():
-                    if value is None or type(value) != dict:
-                        text = f"{key}:{value}"
-                        width,height=self._put_text_to_frame(frame,text,width,height)
-                    else:
-                        for _key,_value in value.items():
-                            text = f"{_key}:{_value}"
-                            width, height = self._put_text_to_frame(frame, text, width, height)
-            self.out.write(frame)
+    def _save_video_thread(self):
+        while self.status:
+            with self.condition:
+                self.condition.wait()
+            while self.save_flag and self.status!=0:
+                timer = time.time()
+                frame_width, frame_height=self.save_size
+                frame=self.frame
+                if frame is None:
+                    frame=np.zeros((frame_height,frame_width,3),dtype = np.uint8)
+                else:
+                    frame = cv2.resize(frame, (frame_width, frame_height))
+                info=self.info_receiver.info.get(str(self.uav_id))
+                #info={"uavId":1,"pos":{"pos1":1,"pos2":2}}
+                if info is not None:
+                    width,height=5,20
+                    for key,value in info.items():
+                        if value is None or type(value) != dict:
+                            text = f"{key}:{value}"
+                            width,height=self._put_text_to_frame(frame,text,width,height)
+                        else:
+                            for _key,_value in value.items():
+                                text = f"{_key}:{_value}"
+                                width, height = self._put_text_to_frame(frame, text, width, height)
+                self.out.write(frame)
+                while time.time()-timer<0.066:
+                    time.sleep(0.006)
+        self.out.release()
 
     def change_save_video_flag(self,flag,frame_width=640, frame_height=480):
         if flag:
@@ -106,6 +117,8 @@ class VideoReceiverThread(QThread):
             self.out = cv2.VideoWriter(f'properties/{self.uav_id}_{save_id}.avi', fourcc, 15,(frame_width, frame_height))
             self.save_size=(frame_width,frame_height)
             self.save_flag=True
+            with self.condition:
+                self.condition.notify_all()
         else:
             self.save_flag = False
             self.out.release()

@@ -242,11 +242,14 @@ class SetupMainWindow:
         @Slot()
         def sendCommand():#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             command_input=self.code_editor.getCodeEntered()
-            if command_input.strip()=="save":
+            if command_input.strip()=="geo":
                 print("=" * 50)
-                for each in self.labels_info.values():
-                    for key,value in each.items():
-                        print(key,value.text())
+                from geographiclib.geodesic import Geodesic
+                params=[]
+                for each in self.info_receiver.info:
+                    params.append(each["pos"]["latitude"])
+                    params.append(each["pos"]["longitude"])
+                print(Geodesic.WGS84.Inverse(*params))
                 print("=" * 50)
             elif command_input.strip()=="s1":
                 from mydronesdk.ddpg_yolo_control import script

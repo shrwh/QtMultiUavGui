@@ -62,7 +62,7 @@ class CommandSender(QThread):
                 # python socket的一个bug?，当对面断开连接后，recv会持续收到空字符串
                 if response=="":
                     raise ConnectionResetError()
-            except ConnectionResetError as e:
+            except (ConnectionResetError,ConnectionAbortedError) as e:
                 time.sleep(0.5)
             else:
                 if self.response_waited and response.find(self.response_waited)!=-1:
