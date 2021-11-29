@@ -238,19 +238,23 @@ class SetupMainWindow:
         # Info Display Labels
         # ///////////////////////////////////////////////////////////////
         self.labels_info = {}
+        # Some Tools
+        # ///////////////////////////////////////////////////////////////
+        from functionality.logger import logger_config
+        logger=logger_config("properties/log.txt","地面站运行数据记录")
 
         @Slot()
         def sendCommand():#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             command_input=self.code_editor.getCodeEntered()
-            if command_input.strip()=="geo":
-                print("=" * 50)
+            if command_input.strip()=="s":
+                #print("=" * 50)
                 from geographiclib.geodesic import Geodesic
-                params=[]
+                #params=[37.392915,121.6006549,37.507968,122.129538]
                 for each in self.info_receiver.info:
                     params.append(each["pos"]["latitude"])
                     params.append(each["pos"]["longitude"])
-                print(Geodesic.WGS84.Inverse(*params))
-                print("=" * 50)
+                logger.info(Geodesic.WGS84.Inverse(*params))
+                #print("=" * 50)
             elif command_input.strip()=="s1":
                 from mydronesdk.ddpg_yolo_control import script
                 script.script(self.command_sender,self.video_receiver_1)
