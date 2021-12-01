@@ -157,8 +157,11 @@ class CodeInputLine(PyLineEdit):
         self.history_flag=True
 
     def addToHistory(self,str):
-        if not (str in self.code_history):
-            self.code_history.append(str)
+        try:
+            self.code_history.remove(str)
+        except Exception:
+            pass
+        self.code_history.append(str)
         self.iter_code_history = reversed(self.code_history)
 
     @Slot()
