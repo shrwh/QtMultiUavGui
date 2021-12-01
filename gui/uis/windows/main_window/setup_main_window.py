@@ -220,6 +220,10 @@ class SetupMainWindow:
         themes = Themes()
         self.themes = themes.items
 
+        # Connection Initializer
+        # ///////////////////////////////////////////////////////////////
+        self.connection_initializer = ConnectionInitializer(8002)
+        self.connection_initializer.start()
         # Command Sender
         # ///////////////////////////////////////////////////////////////
         self.command_sender = CommandSender()
@@ -249,7 +253,7 @@ class SetupMainWindow:
             if command_input.strip()=="s":
                 #print("=" * 50)
                 from geographiclib.geodesic import Geodesic
-                #params=[37.392915,121.6006549,37.507968,122.129538]
+                params=[]#[37.392915,121.6006549,37.507968,122.129538]
                 for each in self.info_receiver.info:
                     params.append(each["pos"]["latitude"])
                     params.append(each["pos"]["longitude"])
@@ -259,7 +263,9 @@ class SetupMainWindow:
                 from mydronesdk.ddpg_yolo_control import script
                 script.script(self.command_sender,self.video_receiver_1)
             elif command_input.strip().find("stop")!=-1:
-                if self.command_sender.sendCommandWithResponse(command_input):
+                re=self.command_sender.sendCommandWithResponse(command_input)
+                print(re)
+                if re:
                     self.command_sender.sendCommand(command_input.replace("stop","land"))
             else:
                 self.command_sender.sendCommand(command_input)
@@ -489,8 +495,8 @@ class SetupMainWindow:
         self.code_editor.line_edit.returnPressed.connect(addToHistory)
 
         @Slot(str)
-        def printToCodeEditor(text):
-            self.code_editor.appendTextLine(text,"red")
+        def printToCodeEditor(text,color="blue"):
+            self.code_editor.appendTextLine(text,color)
 
         @Slot(str)
         def printToReminderBox(text):

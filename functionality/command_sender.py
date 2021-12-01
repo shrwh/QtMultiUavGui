@@ -73,7 +73,7 @@ class CommandSender(QThread):
                     self.printToReminderBox.emit("Some onboard error happened, see page3 for more information.")
                 print(f'command_sender: id[{uav_id}] response:\n"{response}"')
                 # f'<font style="white-space: pre-line;" color=\"{color}\">{text}</font>'
-                temp=f'<font style="white-space: pre-line;" color=\"black\">id[{uav_id}] response:\n</font>'\
+                temp=f'<font style="white-space: pre-line;" color=\"blue\">id[{uav_id}] response:\n</font>'\
                      +f'<font style="white-space: pre-line;" color=\"red\">{response}</font>'
                 self.printToCodeEditor.emit(temp)
 
@@ -96,7 +96,7 @@ class CommandSender(QThread):
             for uav_id in self.conns.keys():
                 self._sendCommand(msg, uav_id)
 
-    def sendCommandWithResponse(self,command_input):
+    def sendCommandWithResponse(self,command_input,timeout=2):
         command = command_input.strip()
         if len(command) == 0:
             return False
@@ -104,25 +104,34 @@ class CommandSender(QThread):
         self.response_waited=command_split[0]
         #print(command_split,self.response_waited)
         temp = command.find("@")
+        self.re_wait = []
         if temp != -1:
             _command = command_split[:-1]
             uav_id = command_split[-1]
             msg = json.dumps(_command)
             self._sendCommand(msg, uav_id)
             with self.conditions[uav_id]:
-                self.conditions[uav_id].wait()
+                self.re_wait.append(self.conditions[uav_id].wait(timeout))
         else:
             for uav_id in self.conns.keys():
                 msg = json.dumps(command_split)
                 self._sendCommand(msg, uav_id)
+
+            def condition_wait_thread(_uav_id):
+                with self.conditions[_uav_id]:
+                    self.re_wait.append(self.conditions[_uav_id].wait(timeout))
+
+            wait_threads=[]
             for uav_id in self.conns.keys():
-                with self.conditions[uav_id]:
-                    #!!!!!!!!!!!!!!!!!!!!
-                    self.conditions[uav_id].wait()
+                wait_threads.append(threading.Thread(target=condition_wait_thread,args=(uav_id,)))
+            for each in wait_threads:
+                each.start()
+            for each in wait_threads:
+                each.join()
         self.response_waited = None
         response=self.response
         self.response = ""
-        if response.find("error") != -1 or response.find("cancelled") != -1 \
+        if not all(self.re_wait) or response.find("error") != -1 or response.find("cancelled") != -1 \
                 or response.find("warning") != -1:
             return False
         return True

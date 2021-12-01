@@ -157,7 +157,8 @@ class CodeInputLine(PyLineEdit):
         self.history_flag=True
 
     def addToHistory(self,str):
-        self.code_history.append(str)
+        if not (str in self.code_history):
+            self.code_history.append(str)
         self.iter_code_history = reversed(self.code_history)
 
     @Slot()
@@ -224,7 +225,7 @@ class MyCodeEditor(QWidget):
     @Slot()
     def codeEntered(self):
         self.code_editor.appendPlainText(f">>{self.getCodeEntered()}")
-        if self.getCodeEntered()=="clear":
+        if self.getCodeEntered()=="cl" or self.getCodeEntered()=="clear":
             self.clear()
 
     def getCodeEntered(self):

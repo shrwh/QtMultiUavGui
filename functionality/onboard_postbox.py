@@ -1,9 +1,11 @@
-from ctypes import sizeof
+from ctypes import c_bool, sizeof
 import socket
+import threading as trd
 from threading import Thread
 import multiprocessing as mp
 import time
 import json
+from typing import Tuple
 import cv2
 import sys
 import numpy
@@ -11,6 +13,8 @@ import asyncio
 import argparse
 import traceback
 import struct
+import os
+import copy
 from yolo_detect import detect_center
 
 
@@ -59,14 +63,16 @@ class OnboardPostbox:
                  loop, async_object,
                  video_flip_method):
         super().__init__()
-        self.address_video = (address, video_port)
-        self.address_info = (info_multicast_ip, info_multicast_port)
-        self.address_command = (address, command_port)
         self.info = async_object.Info
         self.info_sleep = info_sleep
         self.loop = loop
         self.async_object = async_object
         self.video_flip_method = video_flip_method
+
+        self.init_connection()
+        self.address_video = (self.conn_info["address"], video_port)
+        self.address_info = (info_multicast_ip, info_multicast_port)
+        self.address_command = (self.conn_info["address"], command_port)
 
     def start(self):
         self.t1 = Thread(target=self.info_sender)
@@ -74,22 +80,32 @@ class OnboardPostbox:
         self.t3.setDaemon(True)
         self.t4 = Thread(target=self.info_receiver)
         self.t4.setDaemon(True)
+
         self.should_continue = True
         self.t1.start()
         self.t3.start()
         self.t4.start()
-        # asyncio.ensure_future(self.command_receiver())
+
         self.p1 = VideoHandlerProcess(self.async_object.uavId, self.address_video, self.video_flip_method,
                                       self.async_object.condition, self.async_object.conn2)
         self.p1.start()
 
     def close(self):
-        self.p1.should_continue = False
+        # self.p1.should_continue=False no use
+        print('不要再按"Ctrl+C"了!\n需要时间来释放资源，稍等一会儿...\n不要再按"Ctrl+C"了!')
         self.should_continue = False
         self.p1.join()
         self.t1.join()
-        # self.t3.join()
         print(f"onboard_postbox id[{self.async_object.uavId}]: All ended.")
+
+    def init_connection(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        s.bind(("", 8002))
+        data, addr = s.recvfrom(1024)
+        self.conn_info = json.loads(data.decode())
+        print(f"onboard_postbox id[{self.async_object.uavId}]: Remote PC connected.")
+        s.sendto("".encode(), (self.conn_info["address"], 8002))
 
     def info_sender(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -161,7 +177,7 @@ class OnboardPostbox:
                     ph.set_print_to_content(False)
                     args.func(args)
 
-        s.shutdown(socket.SHUT_RDWR)
+        # s.shutdown(socket.SHUT_RDWR)
         s.close()
         print(f"onboard_postbox id[{self.async_object.uavId}]: command_receiver ended")
 
@@ -299,16 +315,21 @@ class OnboardPostbox:
         # ///////////////////////////////////////////////////////////////
         parser_test = subparsers.add_parser("test", help="params for the command 'test'")
         parser_test.add_argument(f'-f', f'--function', default=None, type=str)
+        parser_test.add_argument(f'-p1', f'--param1', default=None)
+        parser_test.add_argument(f'-p2', f'--param2', default=None)
+        parser_test.add_argument(f'-p3', f'--param3', default=None)
 
         def test(args: argparse.Namespace):
             delattr(args, "func")
             if args.function is not None:
                 func = args.function
                 delattr(args, "function")
-                task = eval(f"asyncio.run_coroutine_threadsafe(self.async_object.{func}(**args.__dict__), self.loop)")
+                params = (f"{args.param1}," if args.param1 else "") + (f"{args.param2}," if args.param2 else "") + (
+                    f"{args.param3}" if args.param3 else "")
+                task = eval(f"asyncio.run_coroutine_threadsafe(self.async_object.{func}({params}), self.loop)")
             else:
                 delattr(args, "function")
-                task = asyncio.run_coroutine_threadsafe(self.async_object.test(**args.__dict__), self.loop)
+                task = asyncio.run_coroutine_threadsafe(self.async_object.test(), self.loop)
             # from mavsdk.offboard import VelocityBodyYawspeed
             # async def temp():
             #     await self.async_object.drone.offboard.set_velocity_body(VelocityBodyYawspeed(
@@ -347,68 +368,109 @@ class VideoHandlerProcess(mp.Process):
         self.video_flip_method = video_flip_method
         self.address_video = address_video
         self.uav_id = uavId
-        self.should_continue = True
+        self.should_continue = False
         self.frame = None
         self.condition_p = condition
         self.condition_t = mp.Condition()
         self.conn = conn
         self.detect_box = {'red': [], 'yellow': []}
-        self.flag={"video_id":0,"save_flag":False}
+        self.save_flag = False
+        self.captures = []
 
     def run(self):
+        # 使得该子进程也可以自主捕获Ctrl+C
+        def signal_handler(sig, frame):
+            self.should_continue = False
+            for each in self.captures:
+                each.release()
+            print(f"onboard_postbox id[{self.uav_id}]: video_handler ended")
+
+        import signal
+        signal.signal(signal.SIGINT, signal_handler)
+
         self.t1 = Thread(target=self.video_sender)
+        self.t1.setDaemon(True)
         self.t2 = Thread(target=detect_center, args=(self, self.condition_p, self.conn))
         self.t2.setDaemon(True)
-        self.t3=Thread(target=self.video_flag_listener)
+        self.t3 = Thread(target=self.video_flag_listener)
         self.t3.setDaemon(True)
-        self.t4=Thread(target=self.save_video_thread)
+        self.t4 = Thread(target=self.save_video_thread)
+        self.t4.setDaemon(True)
+        self.t5 = Thread(target=self.video_capture)
+        # self.t5.setDaemon(True)打开会报未知错误！
 
-        self.t1.start()
-        self.t2.start()
         self.t3.start()
+        self.t5.start()
+        while not self.should_continue:
+            time.sleep(0.1)
+        self.t2.start()
         self.t4.start()
+        self.t1.start()
+
+    def video_flag_listener(self):
+        while True:
+            re = self.conn.recv()  # {"save_flag","camera_id"}
+            if re[0] == "camera_id":
+                self.capture = self.captures[re[1]]
+            elif re[0] == "save_flag":
+                self.save_flag = re[1]
+                if re[1]:
+                    with self.condition_t:
+                        self.condition_t.notify_all()
+
+    def video_capture(self):
+        self.captures.append(
+            cv2.VideoCapture(gstreamer_pipeline(flip_method=self.video_flip_method), cv2.CAP_GSTREAMER))
+        capture = cv2.VideoCapture(1)
+        if not capture.isOpened():
+            capture = cv2.VideoCapture(0)
+        if not capture.isOpened():
+            print(f"打开摄像头失败")
+            sys.exit(-1)
+        capture.set(3, 1280)
+        self.captures.append(capture)
+        self.capture = capture
+        # capture.set(5, 30)
+        ret, frame = self.capture.read()
+        self.should_continue = True
+        while self.should_continue:
+            # timer=time.time()
+            if ret:
+                self.frame = cv2.resize(frame, (640, 480))
+            ret, frame = self.capture.read()
+            # print(1/(time.time()-timer))
+        # for each in self.capturtes:
+        #     each.release()
 
     def video_sender(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # s.setblocking(False)
 
-        # capture = cv2.VideoCapture(gstreamer_pipeline(flip_method=self.video_flip_method), cv2.CAP_GSTREAMER)
-        capture = cv2.VideoCapture(0)
-        capture.set(3, 1280)
-        if not capture.isOpened():
-            print("打开摄像头失败")
-            sys.exit(-1)
-        ret, frame = capture.read()
+        frame = self.frame
         # 压缩参数，后面cv2.imencode将会用到，对于jpeg来说，15代表图像质量，越高代表图像质量越好为 0-100，默认95
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 20]
 
-        while ret and self.should_continue:
+        while self.should_continue:
             timer1 = time.time()
+            frame = cv2.resize(frame, (384, 288))  # 640,480 *0.6
             result, imgencode = cv2.imencode('.jpg', frame, encode_param)
             # 建立矩阵
             data = numpy.array(imgencode)
             # 将numpy矩阵转换成字符形式，以便在网络中传输
             stringData = data.tostring()
             s.sendto(stringData, self.address_video)
-            ret, frame = capture.read()
-            frame = cv2.resize(frame, (640, 480))
-            self.frame = frame
+            frame = copy.deepcopy(self.frame)
             if len(self.detect_box['red']):
                 point1, point2 = self.xywh2xyxy('red')
                 cv2.rectangle(frame, point1, point2, color=(0, 0, 255), thickness=2, lineType=cv2.LINE_AA)
             if len(self.detect_box['yellow']):
                 point1, point2 = self.xywh2xyxy('yellow')
                 cv2.rectangle(frame, point1, point2, color=(0, 255, 255), thickness=2, lineType=cv2.LINE_AA)
-            timer8 = time.time()
-            while timer8 - timer1 < 0.0666:
-                time.sleep(0.006)
-                timer8 = time.time()
-            # if timer8 - timer1 > 0.09:
-            #     print("local", timer8 - timer1)
-        capture.release()
-        cv2.destroyAllWindows()
+            while time.time() - timer1 < 1 / 15:
+                time.sleep(0.012)
+            # print(1/(time.time()-timer1))
+        # cv2.destroyAllWindows()
         s.close()
-        print(f"onboard_postbox id[{self.uav_id}]: video_sender ended")
 
     def xywh2xyxy(self, type):
         center = self.detect_box[type]
@@ -418,40 +480,32 @@ class VideoHandlerProcess(mp.Process):
         x2y2 = (int(center[0] + center[2] / 2), int(center[1] + center[3] / 2))
         return x1y1, x2y2
 
-    def video_flag_listener(self):
-        while True:
-            re=self.conn.recv()
-            self.flag[re[0]]=re[1]
-            if re[0]=="save_flag":
-                if re[1]:
-                    with self.condition_t:
-                        self.condition_t.notify_all()
-                else:
-                    self.out.release()
-
     def save_video_thread(self):
-        frame_width, frame_height=640,480
+        frame_width, frame_height, fr = 640, 480, 60
         if not os.path.exists('./properties'):
             os.makedirs("./properties")
         while self.should_continue:
             with self.condition_t:
                 self.condition_t.wait()
+            print("start saving")
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             save_id = time.strftime("%Y-%m-%d-%H-%M", time.localtime())
-            self.out = cv2.VideoWriter(f'properties/{self.uav_id}_{save_id}.avi', fourcc, 15,
-                                       (frame_width, frame_height))
-            while self.flag["save_flag"] and self.should_continue:
+            out = cv2.VideoWriter(f'properties/{self.uav_id}_{save_id}.avi', fourcc, fr,
+                                  (frame_width, frame_height))
+            while self.save_flag and self.should_continue:
                 timer = time.time()
                 frame = self.frame
-                if frame is None:
-                    frame = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
-                else:
-                    frame = cv2.resize(frame, (frame_width, frame_height))
+                # if frame is None:
+                #     frame = numpy.zeros((frame_height, frame_width, 3), dtype=numpy.uint8)
+                # else:
+                #     frame = cv2.resize(frame, (frame_width, frame_height))
                 # info=self.info_receiver.info.get(str(self.uav_id))
-                self.out.write(frame)
-                while time.time()-timer<0.066:
-                    time.sleep(0.006)
-        self.out.release()
+                out.write(frame)
+                while time.time() - timer < 1 / fr:
+                    time.sleep(0.003)
+                # print(1/(time.time()-timer))
+            out.release()
+        out.release()
 
 
 def gstreamer_pipeline(
@@ -459,7 +513,7 @@ def gstreamer_pipeline(
         capture_height=720,
         display_width=640,
         display_height=480,
-        framerate=15,
+        framerate=30,
         flip_method=0,
 ):
     return (
