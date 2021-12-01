@@ -254,17 +254,19 @@ class SetupMainWindow:
                 #print("=" * 50)
                 from geographiclib.geodesic import Geodesic
                 params=[]#[37.392915,121.6006549,37.507968,122.129538]
-                for each in self.info_receiver.info:
+                for each in self.info_receiver.info.values():
                     params.append(each["pos"]["latitude"])
                     params.append(each["pos"]["longitude"])
-                logger.info(Geodesic.WGS84.Inverse(*params))
+                temp=Geodesic.WGS84.Inverse(*params)
+                logger.info(temp)
+                printToCodeEditor(str(temp))
                 #print("=" * 50)
             elif command_input.strip()=="s1":
                 from mydronesdk.ddpg_yolo_control import script
                 script.script(self.command_sender,self.video_receiver_1)
             elif command_input.strip().find("stop")!=-1:
                 re=self.command_sender.sendCommandWithResponse(command_input)
-                print(re)
+                #print(re)
                 if re:
                     self.command_sender.sendCommand(command_input.replace("stop","land"))
             else:
