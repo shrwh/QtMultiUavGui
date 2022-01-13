@@ -69,10 +69,11 @@ class OnboardPostbox:
         self.async_object = async_object
         self.video_flip_method = video_flip_method
 
-        self.init_connection()
-        self.address_video = (self.conn_info["address"], video_port)
+        if self.init_connection():
+            address=self.conn_info["address"]
+        self.address_video = (address, video_port)
         self.address_info = (info_multicast_ip, info_multicast_port)
-        self.address_command = (self.conn_info["address"], command_port)
+        self.address_command = (address, command_port)
 
     def start(self):
         self.t1 = Thread(target=self.info_sender)
@@ -102,10 +103,15 @@ class OnboardPostbox:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         s.bind(("", 8002))
-        data, addr = s.recvfrom(1024)
-        self.conn_info = json.loads(data.decode())
-        print(f"onboard_postbox id[{self.async_object.uavId}]: Remote PC connected.")
-        s.sendto("".encode(), (self.conn_info["address"], 8002))
+        s.settimeout(10)
+        try:
+            data, addr = s.recvfrom(1024)
+            self.conn_info = json.loads(data.decode())
+            print(f"onboard_postbox id[{self.async_object.uavId}]: Remote PC connected.")
+            s.sendto("".encode(), (self.conn_info["address"], 8002))
+            return True
+        except socket.timeout:
+            return False
 
     def info_sender(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -423,13 +429,13 @@ class VideoHandlerProcess(mp.Process):
             cv2.VideoCapture(gstreamer_pipeline(flip_method=self.video_flip_method), cv2.CAP_GSTREAMER))
         capture = cv2.VideoCapture(1)
         if not capture.isOpened():
-            capture = cv2.VideoCapture(0)
-        if not capture.isOpened():
-            print(f"打开摄像头失败")
-            sys.exit(-1)
-        capture.set(3, 1280)
-        self.captures.append(capture)
-        self.capture = capture
+            print(f"打开前置摄像头失败")
+            # sys.exit(-1)
+            self.capture = self.captures[0]
+        else:
+            capture.set(3, 1280)
+            self.captures.append(capture)
+            self.capture = self.captures[1]
         # capture.set(5, 30)
         ret, frame = self.capture.read()
         self.should_continue = True
