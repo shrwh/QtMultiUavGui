@@ -26,7 +26,7 @@ class CommandSender(QThread):
         while self.status==1:
             conn,addr=self.socket.accept()
             uav_id=conn.recv(1024).decode()
-            print(f"command_sender: Remote PC with addr[{addr}] as id[{uav_id}] connected.")
+            print(f"command_sender: Onboard PC with addr[{addr}] as id[{uav_id}] connected.")
             self.printToCodeEditor.emit(f"command_sender: Onboard PC with addr[{addr}] as id[{uav_id}] connected.")
             temp=self.conns.get(uav_id)
             if temp is not None:
@@ -62,7 +62,7 @@ class CommandSender(QThread):
                 # python socket的一个bug?，当对面断开连接后，recv会持续收到空字符串
                 if response=="":
                     raise ConnectionResetError()
-            except (ConnectionResetError,ConnectionAbortedError) as e:
+            except (ConnectionResetError,ConnectionAbortedError,TimeoutError) as e:
                 time.sleep(0.5)
             else:
                 if self.response_waited and response.find(self.response_waited)!=-1:
@@ -88,11 +88,11 @@ class CommandSender(QThread):
             _command = command_split[:-1]
             uav_id = command_split[-1]
             msg = json.dumps(_command)
-            self.printToReminderBox.emit(f"Sending command{msg} to onboard PC id[{uav_id}]...")
+            self.printToReminderBox.emit(f"Sending command{msg} to onboard PC id[{uav_id}]......")
             self._sendCommand(msg, uav_id)
         else:
             msg = json.dumps(command_split)
-            self.printToReminderBox.emit(f"Sending command{msg} to {len(self.conns)} onboard PCs...")
+            self.printToReminderBox.emit(f"Sending command{msg} to {len(self.conns)} onboard PCs......")
             for uav_id in self.conns.keys():
                 self._sendCommand(msg, uav_id)
 

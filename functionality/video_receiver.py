@@ -23,7 +23,7 @@ class VideoReceiverThread(QThread):
         self.port=port
         self.uav_id=uav_id
         self.display_size=display_size
-        self.socket.settimeout(3)
+        # self.socket.settimeout(3)
         self.frame=None
         self.info_receiver=info_receiver
         self.save_flag = False

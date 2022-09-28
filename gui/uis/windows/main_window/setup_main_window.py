@@ -264,11 +264,11 @@ class SetupMainWindow:
             elif command_input.strip()=="s1":
                 from mydronesdk.ddpg_yolo_control import script
                 script.script(self.command_sender,self.video_receiver_1)
-            elif command_input.strip().find("stop")!=-1:
-                re=self.command_sender.sendCommandWithResponse(command_input)
-                #print(re)
-                if re:
-                    self.command_sender.sendCommand(command_input.replace("stop","land"))
+            # elif command_input.strip().find("stop")!=-1:
+            #     re=self.command_sender.sendCommandWithResponse(command_input)
+            #     print(re)
+            #     if re:
+            #         self.command_sender.sendCommand(command_input.replace("stop","land"))
             else:
                 self.command_sender.sendCommand(command_input)
 
@@ -308,6 +308,22 @@ class SetupMainWindow:
         self.ui.left_column.menus.btn_2_layout.addWidget(self.bnt_stop)
         self.bnt_stop.clicked.connect(stop_button_clicked)
 
+        @Slot()
+        def land_button_clicked():
+            self.code_editor.enterCode("land")
+
+        self.bnt_land = PyPushButton(
+            text="land",
+            radius=8,
+            color=self.themes["app_color"]["text_foreground"],
+            bg_color=self.themes["app_color"]["dark_one"],
+            bg_color_hover=self.themes["app_color"]["dark_three"],
+            bg_color_pressed=self.themes["app_color"]["dark_four"],
+        )
+        self.bnt_land.setMinimumHeight(40)
+        self.ui.left_column.menus.btn_3_layout.addWidget(self.bnt_land)
+        self.bnt_land.clicked.connect(land_button_clicked)
+
         self.left_column_line_edit = CodeInputLine()
         self.left_column_line_edit.loadHistory()
         self.left_column_line_edit.set_stylesheet(
@@ -325,7 +341,7 @@ class SetupMainWindow:
             self.code_editor.enterCode(self.left_column_line_edit.code_str)
 
         self.left_column_line_edit.returnPressed.connect(leftColumnLineEditReturnPressedMethod)
-        self.ui.left_column.menus.btn_3_layout.addWidget(self.left_column_line_edit)
+        self.ui.left_column.menus.btn_4_layout.addWidget(self.left_column_line_edit)
 
         self.toggle_save_video = PyToggle(
             width=50,
@@ -341,7 +357,7 @@ class SetupMainWindow:
             self.video_receiver_2.change_save_video_flag(flag)
 
         self.toggle_save_video.stateChanged.connect(changeSaveVideoFlag)
-        self.ui.left_column.menus.btn_4_layout.addWidget(self.toggle_save_video, 0, Qt.AlignCenter)
+        self.ui.left_column.menus.btn_5_layout.addWidget(self.toggle_save_video, 0, Qt.AlignCenter)
 
         # Page1
         # ///////////////////////////////////////////////////////////////

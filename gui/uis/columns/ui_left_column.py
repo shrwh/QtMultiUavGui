@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'left_columnjzXejK.ui'
+## Form generated from reading UI file 'left_columnkVVKtQ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.1.3
 ##
@@ -80,6 +80,19 @@ class Ui_LeftColumn(object):
         self.btn_4_layout.setContentsMargins(0, 0, 0, 0)
 
         self.verticalLayout.addWidget(self.frame_btn_4)
+
+        self.frame_btn_5 = QFrame(self.menu_1)
+        self.frame_btn_5.setObjectName(u"frame_btn_5")
+        self.frame_btn_5.setMinimumSize(QSize(0, 40))
+        self.frame_btn_5.setMaximumSize(QSize(16777215, 40))
+        self.frame_btn_5.setFrameShape(QFrame.NoFrame)
+        self.frame_btn_5.setFrameShadow(QFrame.Raised)
+        self.btn_5_layout = QVBoxLayout(self.frame_btn_5)
+        self.btn_5_layout.setSpacing(0)
+        self.btn_5_layout.setObjectName(u"btn_5_layout")
+        self.btn_5_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.verticalLayout.addWidget(self.frame_btn_5)
 
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
 

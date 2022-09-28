@@ -33,7 +33,7 @@ class MyReminderBox(QWidget):
         self.setStyleSheet(custom_style.format(
             _text_font=text_font
         ))
-        self.setMinimumWidth(200)
+        self.setMinimumWidth(400)
         self.bnt_OK = PyPushButton(
             text="OK",
             radius=btn_radius,
@@ -77,7 +77,7 @@ class MyReminderBox(QWidget):
         pos_p = self.parent().mapToGlobal(QPoint(0,0))
         x = pos_p.x() + self.parent().width() / 2 - self.width() / 2
         y = pos_p.y() + 42
-        #print(pos_p.x(), pos_p.y(), self.width(), self.height())
+
         self.setGeometry(x, y, self.width(), self.height())
 
         super().paintEvent(event)
